@@ -156,7 +156,7 @@ def render(st):
     (EGG_DIR / "bottom.svg").write_text(slice_svg(st, 0, MID, W, H - MID, "devgotchi speaker grille"))
     v = int(time.time())
     btns = "".join(
-        f'<a href="https://github.com/{REPO}/issues/new?title={quote("pet|" + n)}&body={quote(issue_body(n))}">'
+        f'<a href="https://github.com/{REPO}/issues/new?template={n}.md">'
         f'<img src="egg/btn-{n}.svg?v={v}" width="100" align="top" alt="{n}"></a>' for n, _ in BUTTONS)
     last = st.get("last")
     top = sorted(st["users"].items(), key=lambda kv: -kv[1]["count"])[:3]
