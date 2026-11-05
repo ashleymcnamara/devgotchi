@@ -21,29 +21,11 @@ NAME = "Byte"
 
 MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace"
 INK, YELLOW, PINK, SHADOW = "#1a0f2e", "#ffd479", "#f7a8c4", "#b8336a"
-CREAM, LCD, LCDK = "#fffaf0", "#c3cf9f", "#26301c"
+CREAM, LCD, LCDK = "#fffaf0", "#efeaff", "#3b2a63"
 W, H, TOP, MID = 300, 384, 262, 330
 EGG = "M150 16 C 224 16, 288 132, 288 236 C 288 324, 228 368, 150 368 C 72 368, 12 324, 12 236 C 12 132, 76 16, 150 16 Z"
 LX, LY, LW, LH, P = 78, 124, 144, 104, 4
 
-PET = ["....kkkkk..kk",
-       "..kkkkkkkkkkk",
-       ".kkkkkkkkkkk.",
-       ".kkk.....kkk.",
-       ".kk.......kk.",
-       ".kk.k...k.kk.",
-       ".kk.k...k.kk.",
-       ".kk.......kk.",
-       ".kk..kkk..kk.",
-       ".kkk.....kkk.",
-       ".kk.kkkkk.kk.",
-       ".kk...k...kk.",
-       "..kkkkkkkkk..",
-       ".kkkk...kkkk.",
-       "k.kkkkkkkkk.k",
-       "..kkkkkkkkk..",
-       "...kk...kk..."]
-BLINK = PET[:5] + [".kk.......kk.", ".kk.kk.kk.kk."] + PET[7:]
 BUG = ["k...k", ".kkk.", "kkkkk", ".kkk.", "k...k"]
 CUP = [".k.k..", "..k.k.", "kkkkk.", "kkkkkk", "kkkk.k", "kkkkk.", ".kkk.."]
 SPLAT = ["k.k.k", ".k.k.", "kk.kk", ".k.k.", "k.k.k"]
@@ -71,10 +53,66 @@ def txt(x, y, s, size=8, anchor="start", cls=""):
             f'font-size="{size}" fill="{LCDK}" letter-spacing=".5">{s}</text>')
 
 
-STAGES = [(0, "junior dev", "JR"), (30, "senior dev", "SR"), (100, "staff engineer", "STAFF"),
-          (250, "mysterious architect", "ARCH")]
-CRAB = ["k.......k", ".k.....k.", "..kkkkk..", ".kk.k.kk.", "kkkkkkkkk", "k.k...k.k"]
+PAL = {"k": "#2a1b3d", "h": "#7a4526", "H": "#a8673a", "s": "#f9d2b0", "c": "#f49ab0", "w": "#ffffff",
+       "p": "#8f6cf2", "P": "#6449c9", "l": "#c6b6ff", "m": "#c04cf0", "g": "#d9d4e6", "G": "#a69fba",
+       "r": "#e5484d", "o": "#f26b2a", "b": "#7b4a2a"}
+GIRL = ["........kkkk........",
+        ".......khhhhk.......",
+        ".......khhHhk.......",
+        "......kkhhhhkk......",
+        "....kkhhhhhhhhkk....",
+        "...khhhHHhhhhhhhk...",
+        "..khhHhhhhhhhhhhhk..",
+        ".khhhhhhhhhhhhhhhhk.",
+        ".khhhhhhhhhhhhhhhhk.",
+        ".khhshhsshhsshhshhk.",
+        ".khhsssssssssssshhk.",
+        ".khhsswksssswksshhk.",
+        ".khhsskksssskksshhk.",
+        ".khhscssskkssscshhk.",
+        ".khhkssssssssssk hk.".replace(" ", "h"),
+        ".khhhhkkkkkkkkhhhhk.",
+        "..khhkppwsswppkhhk..",
+        "...kkpppwppwpppkk...",
+        "...kppppwppwppppk...",
+        "..ksppppppppppppsk..",
+        "...kpppppPPpppppk...",
+        "....kkkkkkkkkkkk....",
+        "....kPPk....kPPk....",
+        "....kkkk....kkkk...."]
+BABY = ["................",
+        ".....kkkkkk.....",
+        "....khhHhhhk....",
+        "...khhhhhhhhk...",
+        "..khhhhhhhhhhk..",
+        "..khsssssssshk..",
+        "..kssssssssssk..",
+        "..kswksssswksk..",
+        "..kskksssskksk..",
+        "..kcssskksssck..",
+        "..kppkkkkkkppk..",
+        ".kppppllppppppk.",
+        ".kppplllpppppPk.",
+        ".kpppppppppPPPk.",
+        "..kPPpppppPPPk..",
+        "...kkkkkkkkkk..."]
+CAT = ["k.....k", "kk...kk", "kwwwwwk", "kwkwkwk", "kwwcwwk", ".kkkkk."]
+LAPTOP = ["kkkkkkkk.", "kllllllk.", "kllwwllk.", "kllllllk.", "kkkkkkkkk", "kPPPPPPPk", "kkkkkkkkk"]
+MUG = [".w.w...", "..w.w..", "kkkkk..", "kbbbkk.", "kwwwk.k", "kwwwkk.", ".kkk..."]
+BUGC = [".k.k.", "krrrk", "rrkrr", "krrrk", ".r.r."]
+SPLATC = ["r.r.r", ".rwr.", "rwwwr", ".rwr.", "r.r.r"]
+CRABC = ["o.......o", "oo.....oo", ".ooooooo.", "ookoookoo", "ooooooooo", "o.o...o.o"]
+HEART = [".c.c.", "ccccc", "ccccc", ".ccc.", "..c.."]
+STAGES = [(0, "baby", "BABY"), (1, "toddler", "TODDLER"), (3, "kid", "KID"), (7, "teen", "TEEN"),
+          (14, "grown-up dev", "ADULT"), (30, "wise elder dev", "ELDER")]
 REACT_HOURS, GRUMPY_HOURS, RUST_HOURS = 6, 24, 48
+SP = 3
+
+
+def cpx(rows, x0, y0, s, cls="", tint=None):
+    r = "".join(f'<rect x="{x0 + x * s}" y="{y0 + y * s}" width="{s}" height="{s}" fill="{tint or PAL[c]}"/>'
+                for y, row in enumerate(rows) for x, c in enumerate(row) if c in PAL)
+    return f'<g{cls}>{r}</g>'
 
 
 def now():
@@ -86,7 +124,7 @@ def hours_since(iso):
 
 
 def stage(st):
-    return [s for s in STAGES if st["total"] >= s[0]][-1]
+    return [x for x in STAGES if day(st) - 1 >= x[0]][-1]
 
 
 def condition(st):
@@ -103,62 +141,84 @@ def mood(st):
     return 3 if avg >= 7 else 2 if avg >= 4 else 1
 
 
-def sprite(st, asleep=False):
-    cond, abbr = condition(st), stage(st)[2]
-
-    def dress(base):
-        rows = list(base)
-        if abbr == "ARCH":
-            rows[0:3] = ["......k......", "....kkkkk....", "..kkkkkkkkk.."]
-        if cond != "ok":
-            rows[8], rows[9] = ".kk..kkk..kk.", ".kkk.k.k.kkk."
-        g = [list(r) for r in rows]
-        if abbr != "JR":
-            for x in (3, 4, 5, 7, 8, 9):
-                g[4][x] = "k"
-            g[5][3] = g[5][5] = g[5][7] = g[5][9] = g[5][6] = "k"
-        if abbr == "STAFF":
-            for y in range(4, 8):
-                g[y][0] = g[y][12] = "k"
-        return ["".join(r) for r in g]
-    awake, closed = dress(PET), dress(BLINK)
-    return (closed, closed) if asleep else (awake, closed)
+def sprite(st, closed=False):
+    """returns (rows, x_offset_in_pixels) for Byte at her current stage."""
+    abbr, cond = stage(st)[2], condition(st)
+    if abbr == "BABY":
+        rows = [list(r) for r in BABY]
+        if closed:
+            rows[7] = list("..kssssssssssk..")
+        return ["".join(r) for r in rows]
+    g = [list(r) for r in GIRL]
+    if closed:
+        g[11] = list(".khhsssssssssssshhk.")
+        g[12] = list(".khhskksssssskkshhk.")
+    if cond != "ok":
+        g[13] = list(".khhscsskkkksscshhk.")
+        g[10] = list(".khhskksssssskkshhk.")
+    if abbr in ("ADULT", "ELDER"):
+        for x in (5, 6, 7, 8, 11, 12, 13, 14):
+            g[10][x] = "k"
+        for y in (11, 12):
+            g[y][5] = g[y][8] = g[y][11] = g[y][14] = "k"
+        g[11][9] = g[11][10] = "k"
+    if abbr == "TEEN":
+        for x in range(6, 14):
+            g[4][x] = "m"
+        g[5][3] = g[6][2] = g[5][16] = g[6][17] = "m"
+        for y in range(7, 10):
+            g[y][1] = g[y][18] = "m"
+        for y in range(10, 14):
+            g[y][0], g[y][1], g[y][2] = "k", "m", "m"
+            g[y][17], g[y][18], g[y][19] = "m", "m", "k"
+    if abbr == "ELDER":
+        g = [[{"h": "g", "H": "G"}.get(c, c) for c in r] for r in g]
+    if abbr == "TODDLER":
+        g = g[:16] + [list("..khhkppwsswppkhhk.."), list("...kkpppwppwpppkk..."),
+                      list("..ksppppppppppppsk.."), list("....kkkkkkkkkkkk...."), list("....kPPk....kPPk...."),
+                      list("....kkkk....kkkk....")]
+    return ["".join(r) for r in g]
 
 
 def screen(st):
     last = st.get("last") or {}
-    fresh = hours_since(last.get("at")) < REACT_HOURS
-    act = last.get("action") if fresh else None
-    cond = condition(st)
-    abbr = stage(st)[2]
-    sx, sy = LX + 11 * P, LY + 3 * P
-    rows, blink = sprite(st, asleep=act == "nap")
+    act = last.get("action") if hours_since(last.get("at")) < REACT_HOURS else None
+    cond, abbr = condition(st), stage(st)[2]
+    awake, shut = sprite(st), sprite(st, closed=True)
+    sp = 4 if abbr == "BABY" else SP
+    w, h = len(awake[0]) * sp, len(awake) * sp
+    sx, sy = LX + (LW - w) // 2 - 6, LY + 82 - h
     if act == "nap":
-        pet = px(rows, sx, sy, P, LCDK)
+        pet = cpx(shut, sx, sy, sp)
     else:
-        pet = px(rows, sx, sy, P, LCDK, ' class="fa"') + px(blink, sx + P, sy, P, LCDK, ' class="fb"')
+        pet = cpx(awake, sx, sy, sp, ' class="fa"') + cpx(shut, sx, sy, sp, ' class="fb"')
     prop, pop, stat = "", "", f"{abbr} · DAY {day(st)}"
+    right = sx + w + 4
+    if abbr == "TODDLER" and not act:
+        prop += cpx(CAT, right, LY + 68, 3)
+    if abbr in ("KID", "ADULT") and not act:
+        prop += cpx(LAPTOP, right, LY + 64, 3)
     if act == "coffee":
-        prop, pop, stat = px(CUP, 184, 176, 4, LCDK), "+2", f"ENERGY {st['energy']}/10"
+        prop, pop, stat = cpx(MUG, right, LY + 58, 3), "+2", f"ENERGY {st['energy']}/10"
     elif act == "nap":
-        prop = txt(184, 206, "z", 10) + txt(194, 194, "Z", 13) + txt(204, 180, "Z", 16)
+        prop = "".join(f'<text x="{right + dx}" y="{LY + dy}" font-family="{MONO}" font-weight="800" font-size="{fs}" fill="{PAL["p"]}">{z}</text>'
+                       for dx, dy, fs, z in ((0, 82, 10, "z"), (9, 70, 13, "Z"), (18, 56, 16, "Z")))
         pop, stat = "+3", f"REST {st['rest']}/10"
     elif act == "debug":
-        prop, pop, stat = px(SPLAT, 190, 184, 4, LCDK), "OK!", f"BUGS {st['bugs']}"
+        prop, pop, stat = cpx(SPLATC, right + 2, LY + 66, 4), "OK!", f"BUGS {st['bugs']}"
     elif cond == "rust":
-        prop = px(CRAB, 186, 186, 3, LCDK, ' class="bug"')
+        prop = cpx(CRABC, right, LY + 68, 3, ' class="bug"')
         pop, stat = ".rs", "REWRITING IN RUST"
     elif cond == "grumpy":
         pop, stat = "ugh", "GRUMPY"
     if st["bugs"]:
-        prop += px(BUG, LX + 3 * P, LY + 15 * P, P, LCDK, ' class="bug"')
+        prop += cpx(BUGC, LX + 8, LY + 70, 3, ' class="bug"')
     if st["bugs"] >= 3:
-        prop += px(BUG, LX + 4 * P, LY + 8 * P, P, LCDK)
-    popx, popy = (198, 150) if act == "nap" else (198, 166)
-    poptxt = txt(popx, popy, pop, 10 if len(pop) < 4 else 8, "middle", ' class="pop"') if pop else ""
-    hearts = "".join(px(ICONS["love"], LX + LW - 44 + i * 13, LY + 5, 2, LCDK if i < mood(st) else "#9aa67a")
+        prop += cpx(BUGC, LX + 12, LY + 40, 3)
+    poptxt = txt(right + 14, LY + (30 if act == "nap" else 40), pop, 10, "middle", ' class="pop"') if pop else ""
+    hearts = "".join(cpx(HEART, LX + LW - 40 + i * 12, LY + 6, 2, tint=None if i < mood(st) else "#d8cff5")
                      for i in range(3))
-    status = (f'<rect x="{LX + 4}" y="{LY + LH - 17}" width="{LW - 8}" height="1" fill="{LCDK}" opacity=".35"/>'
+    status = (f'<rect x="{LX + 4}" y="{LY + LH - 17}" width="{LW - 8}" height="1" fill="{LCDK}" opacity=".25"/>'
               + txt(LX + 8, LY + LH - 6, NAME.upper()) + txt(LX + LW - 8, LY + LH - 6, stat, anchor="end"))
     return hearts + pet + prop + poptxt + status
 
@@ -235,7 +295,7 @@ def render(st):
 # 🥚 devgotchi
 
 {NAME} is a tiny pixel developer the community raises together. Press a button, hit **Submit**, and she reacts here in about 30 seconds.<br>
-She grows from junior dev to staff engineer to mysterious architect. Neglect her and she starts rewriting everything in Rust.
+She grows up from a baby to a teen with headphones to a wise elder dev. Neglect her and she starts rewriting everything in Rust.
 
 <img src="egg/top.svg?v={v}" width="300" align="top" alt="{NAME}"><br>{btns}<br><img src="egg/bottom.svg?v={v}" width="300" align="top" alt="">
 
@@ -296,7 +356,7 @@ def act(title, user, created=""):
         return (f"⏳ {NAME} is still processing your last visit, @{user}. "
                 f"Come back in about {plural(mins, 'minute')}!\n\n" + footer(st))
 
-    was, rank = condition(st), stage(st)
+    was = condition(st)
     before = dict(st)
     if a == "coffee":
         st["energy"] = min(10, st["energy"] + 2)
@@ -340,8 +400,11 @@ def act(title, user, created=""):
         extra = f"\n\n🦀 **You rescued {NAME}!** She was halfway through rewriting everything in Rust."
     elif was == "grumpy":
         extra = f"\n\n🌤️ {NAME} was feeling neglected. You cheered her up."
-    if stage(st) != rank:
-        extra += f"\n\n🎉 **Promotion!** {NAME} is now a **{stage(st)[1]}**. You were there for it."
+    if st.get("seen_stage") != stage(st)[2]:
+        if st.get("seen_stage"):
+            extra += f"\n\n🎉 **{NAME} grew up!** She's a **{stage(st)[1]}** now, and you're the first to see it."
+        st["seen_stage"] = stage(st)[2]
+        save(st)
     return f"{emo} **{NAME} {did}!** {change}.{extra}\n\n{hi}\n\n" + footer(st)
 
 
