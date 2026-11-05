@@ -2,7 +2,8 @@
 
 usage:
   python3 scripts/devgotchi.py render
-  python3 scripts/devgotchi.py act "<issue title>" "<login>"   # prints the bot comment
+  python3 scripts/devgotchi.py tick                     # hourly-ish decay, run by cron
+  python3 scripts/devgotchi.py act "<title>" "<login>" "<account created_at>"   # prints the bot comment
 """
 import json, sys, time
 from datetime import date, datetime, timezone
@@ -12,7 +13,10 @@ from urllib.parse import quote
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "state.json"
 EGG_DIR = ROOT / "egg"
-REPO = "ashleymcnamara/devgotchi-lab"
+REPO = "ashleymcnamara/devgotchi"
+PROFILE = "https://github.com/ashleymcnamara"
+OWNER = "ashleymcnamara"
+COOLDOWN_HOURS, MIN_ACCOUNT_DAYS = 1, 7
 NAME = "Byte"
 
 MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace"
@@ -67,31 +71,91 @@ def txt(x, y, s, size=8, anchor="start", cls=""):
             f'font-size="{size}" fill="{LCDK}" letter-spacing=".5">{s}</text>')
 
 
+STAGES = [(0, "junior dev", "JR"), (30, "senior dev", "SR"), (100, "staff engineer", "STAFF"),
+          (250, "mysterious architect", "ARCH")]
+CRAB = ["k.......k", ".k.....k.", "..kkkkk..", ".kk.k.kk.", "kkkkkkkkk", "k.k...k.k"]
+REACT_HOURS, GRUMPY_HOURS, RUST_HOURS = 6, 24, 48
+
+
+def now():
+    return datetime.now(timezone.utc)
+
+
+def hours_since(iso):
+    return (now() - datetime.fromisoformat(iso)).total_seconds() / 3600 if iso else 1e9
+
+
+def stage(st):
+    return [s for s in STAGES if st["total"] >= s[0]][-1]
+
+
+def condition(st):
+    h = hours_since(st.get("last_care") or st["born"] + "T00:00:00+00:00")
+    if h >= RUST_HOURS:
+        return "rust"
+    if h >= GRUMPY_HOURS or mood(st) == 1:
+        return "grumpy"
+    return "ok"
+
+
 def mood(st):
     avg = (st["energy"] + st["rest"] + max(0, 10 - 3 * st["bugs"])) / 3
     return 3 if avg >= 7 else 2 if avg >= 4 else 1
 
 
+def sprite(st, asleep=False):
+    cond, abbr = condition(st), stage(st)[2]
+
+    def dress(base):
+        rows = list(base)
+        if abbr == "ARCH":
+            rows[0:3] = ["......k......", "....kkkkk....", "..kkkkkkkkk.."]
+        if cond != "ok":
+            rows[8], rows[9] = ".kk..kkk..kk.", ".kkk.k.k.kkk."
+        g = [list(r) for r in rows]
+        if abbr != "JR":
+            for x in (3, 4, 5, 7, 8, 9):
+                g[4][x] = "k"
+            g[5][3] = g[5][5] = g[5][7] = g[5][9] = g[5][6] = "k"
+        if abbr == "STAFF":
+            for y in range(4, 8):
+                g[y][0] = g[y][12] = "k"
+        return ["".join(r) for r in g]
+    awake, closed = dress(PET), dress(BLINK)
+    return (closed, closed) if asleep else (awake, closed)
+
+
 def screen(st):
-    last = (st.get("last") or {}).get("action")
+    last = st.get("last") or {}
+    fresh = hours_since(last.get("at")) < REACT_HOURS
+    act = last.get("action") if fresh else None
+    cond = condition(st)
+    abbr = stage(st)[2]
     sx, sy = LX + 11 * P, LY + 3 * P
-    if last == "nap":
-        sleepy = [r if i not in (5, 6) else BLINK[i] for i, r in enumerate(PET)]
-        pet = px(sleepy, sx, sy, P, LCDK)
+    rows, blink = sprite(st, asleep=act == "nap")
+    if act == "nap":
+        pet = px(rows, sx, sy, P, LCDK)
     else:
-        pet = px(PET, sx, sy, P, LCDK, ' class="fa"') + px(BLINK, sx + P, sy, P, LCDK, ' class="fb"')
-    prop, pop, stat = "", "", f"JR · DAY {day(st)}"
-    if last == "coffee":
+        pet = px(rows, sx, sy, P, LCDK, ' class="fa"') + px(blink, sx + P, sy, P, LCDK, ' class="fb"')
+    prop, pop, stat = "", "", f"{abbr} · DAY {day(st)}"
+    if act == "coffee":
         prop, pop, stat = px(CUP, 184, 176, 4, LCDK), "+2", f"ENERGY {st['energy']}/10"
-    elif last == "nap":
+    elif act == "nap":
         prop = txt(184, 206, "z", 10) + txt(194, 194, "Z", 13) + txt(204, 180, "Z", 16)
         pop, stat = "+3", f"REST {st['rest']}/10"
-    elif last == "debug":
+    elif act == "debug":
         prop, pop, stat = px(SPLAT, 190, 184, 4, LCDK), "OK!", f"BUGS {st['bugs']}"
+    elif cond == "rust":
+        prop = px(CRAB, 186, 186, 3, LCDK, ' class="bug"')
+        pop, stat = ".rs", "REWRITING IN RUST"
+    elif cond == "grumpy":
+        pop, stat = "ugh", "GRUMPY"
     if st["bugs"]:
         prop += px(BUG, LX + 3 * P, LY + 15 * P, P, LCDK, ' class="bug"')
-    popy = 150 if last == "nap" else 166
-    poptxt = txt(198, popy, pop, 10, "middle", ' class="pop"') if pop else ""
+    if st["bugs"] >= 3:
+        prop += px(BUG, LX + 4 * P, LY + 8 * P, P, LCDK)
+    popx, popy = (198, 150) if act == "nap" else (198, 166)
+    poptxt = txt(popx, popy, pop, 10 if len(pop) < 4 else 8, "middle", ' class="pop"') if pop else ""
     hearts = "".join(px(ICONS["love"], LX + LW - 44 + i * 13, LY + 5, 2, LCDK if i < mood(st) else "#9aa67a")
                      for i in range(3))
     status = (f'<rect x="{LX + 4}" y="{LY + LH - 17}" width="{LW - 8}" height="1" fill="{LCDK}" opacity=".35"/>'
@@ -150,7 +214,7 @@ def day(st):
 
 def render(st):
     EGG_DIR.mkdir(exist_ok=True)
-    (EGG_DIR / "top.svg").write_text(slice_svg(st, 0, 0, W, TOP, f"devgotchi: {NAME}, a tiny pixel developer raised by the community. Junior dev, day {day(st)}.", CSS))
+    (EGG_DIR / "top.svg").write_text(slice_svg(st, 0, 0, W, TOP, f"devgotchi: {NAME}, a tiny pixel developer raised by the community. {stage(st)[1].capitalize()}, day {day(st)}.", CSS))
     for i, (n, _) in enumerate(BUTTONS):
         (EGG_DIR / f"btn-{n}.svg").write_text(slice_svg(st, i * 100, TOP, 100, MID - TOP, f"{n} button"))
     (EGG_DIR / "bottom.svg").write_text(slice_svg(st, 0, MID, W, H - MID, "devgotchi speaker grille"))
@@ -168,13 +232,16 @@ def render(st):
     line.append(f'{plural(len(st["users"]), "caretaker")} · {plural(st["total"], "action")}')
     (ROOT / "README.md").write_text(f"""<div align="center">
 
-# 🥚 devgotchi lab
+# 🥚 devgotchi
 
-A tiny pixel developer the community raises together. Press a button, hit **Submit**, and {NAME} reacts here in about 30 seconds.
+{NAME} is a tiny pixel developer the community raises together. Press a button, hit **Submit**, and she reacts here in about 30 seconds.<br>
+She grows from junior dev to staff engineer to mysterious architect. Neglect her and she starts rewriting everything in Rust.
 
 <img src="egg/top.svg?v={v}" width="300" align="top" alt="{NAME}"><br>{btns}<br><img src="egg/bottom.svg?v={v}" width="300" align="top" alt="">
 
 <sub>{" · ".join(line)}</sub>
+
+<sub>one press per person per hour · lives on [@{OWNER}'s profile]({PROFILE})</sub>
 
 </div>
 """)
@@ -186,11 +253,50 @@ def issue_body(n):
             f"{NAME} will react on the egg in about 30 seconds.\n\n_(please don't edit the title)_")
 
 
-def act(title, user):
-    st = json.loads(STATE.read_text())
+def load():
+    return json.loads(STATE.read_text())
+
+
+def save(st):
+    STATE.write_text(json.dumps(st, indent=2) + "\n")
+    render(st)
+
+
+def tick():
+    st = load()
+    st["ticks"] = st.get("ticks", 0) + 1
+    st["energy"] = max(0, st["energy"] - 1)
+    st["rest"] = max(0, st["rest"] - 1)
+    if st["ticks"] % 2 == 0:
+        st["bugs"] = min(5, st["bugs"] + 1)
+    save(st)
+
+
+def footer(st):
+    return (f'<a href="{PROFILE}"><img src="https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg" width="240" alt="{NAME}"></a>\n\n'
+            f"**[← back to the egg]({PROFILE})** · "
+            f"<sub>{NAME} is a {stage(st)[1]}, day {day(st)} · {plural(len(st['users']), 'caretaker')} so far</sub>")
+
+
+def act(title, user, created=""):
+    st = load()
     a = title.strip().lower().removeprefix("pet|").strip()
     if a not in ACTIONS:
-        return f"🥚 {NAME} didn't understand `{title[:40]}`. Try one of the buttons on the egg!"
+        return f"🥚 {NAME} only understands the buttons on the egg.\n\n" + footer(st)
+    try:
+        age = (now() - datetime.fromisoformat(created.replace("Z", "+00:00"))).days
+    except ValueError:
+        age = 0
+    if age < MIN_ACCOUNT_DAYS:
+        return (f"🥚 Thanks for stopping by! {NAME} only accepts care from GitHub accounts older than "
+                f"{MIN_ACCOUNT_DAYS} days, to keep the egg safe from spam bots. Come back soon 💖\n\n" + footer(st))
+    u = st["users"].get(user)
+    if u and hours_since(u.get("at")) < COOLDOWN_HOURS:
+        mins = max(1, int((COOLDOWN_HOURS - hours_since(u["at"])) * 60))
+        return (f"⏳ {NAME} is still processing your last visit, @{user}. "
+                f"Come back in about {plural(mins, 'minute')}!\n\n" + footer(st))
+
+    was, rank = condition(st), stage(st)
     before = dict(st)
     if a == "coffee":
         st["energy"] = min(10, st["energy"] + 2)
@@ -205,19 +311,18 @@ def act(title, user):
     if st["total"] % 4 == 0 and a != "debug":
         st["bugs"] = min(5, st["bugs"] + 1)
     today = date.today().isoformat()
-    u = st["users"].get(user)
     first = u is None
     if first:
         u = {"count": 0, "first": today, "last_day": None, "streak": 0}
     if u["last_day"] != today:
         yday = date.fromordinal(date.today().toordinal() - 1).isoformat()
         u["streak"] = u["streak"] + 1 if u["last_day"] == yday else 1
-    u["count"] += 1
-    u["last_day"] = today
+    stamp = now().isoformat(timespec="seconds")
+    u.update(count=u["count"] + 1, last_day=today, at=stamp)
     st["users"][user] = u
-    st["last"] = {"action": a, "user": user, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-    STATE.write_text(json.dumps(st, indent=2) + "\n")
-    render(st)
+    st["last"] = {"action": a, "user": user, "at": stamp}
+    st["last_care"] = stamp
+    save(st)
 
     emo, _, did = ACTIONS[a]
     change = {"coffee": f"Energy {before['energy']} → {st['energy']}",
@@ -230,15 +335,21 @@ def act(title, user):
         n = u["count"]
         suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
         hi = f"Welcome back @{user}, that's your **{n}{suf} visit**{streak}."
-    egg = f"https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg"
-    return (f"{emo} **{NAME} {did}!** {change}.\n\n{hi}\n\n"
-            f'<a href="https://github.com/{REPO}"><img src="{egg}" width="240" alt="{NAME} reacting"></a>\n\n'
-            f"**[← back to the egg](https://github.com/{REPO})** to press another button\n\n"
-            f"<sub>{NAME} is a junior dev, day {day(st)} · {plural(len(st['users']), 'caretaker')} so far</sub>")
+    extra = ""
+    if was == "rust":
+        extra = f"\n\n🦀 **You rescued {NAME}!** She was halfway through rewriting everything in Rust."
+    elif was == "grumpy":
+        extra = f"\n\n🌤️ {NAME} was feeling neglected. You cheered her up."
+    if stage(st) != rank:
+        extra += f"\n\n🎉 **Promotion!** {NAME} is now a **{stage(st)[1]}**. You were there for it."
+    return f"{emo} **{NAME} {did}!** {change}.{extra}\n\n{hi}\n\n" + footer(st)
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "render":
-        render(json.loads(STATE.read_text()))
+    cmd = sys.argv[1]
+    if cmd == "render":
+        render(load())
+    elif cmd == "tick":
+        tick()
     else:
-        print(act(sys.argv[2], sys.argv[3]))
+        print(act(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else ""))
