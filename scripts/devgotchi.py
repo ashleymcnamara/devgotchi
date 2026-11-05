@@ -29,69 +29,38 @@ ACTIONS = {
 }
 JITTERY = 3
 
-# Everything sits on one pixel grid: a cell is 6 units of the approved mockup (2 css px in the README).
-# art/ holds the shell and Byte's frames, already snapped by scripts/build_art.py; the bot only base64s them.
+# Everything is drawn in the approved mockup's pixel space (1254x1254). art/ holds the shell and
+# Byte's frames cut from the kit by scripts/build_art.py; the bot only base64s them, no Pillow needed.
 ART = ROOT / "art"
-U, GX, GY = 6, 118, 0
-CROP = (GX, GY, 1020, 1242)  # 170 x 207 cells
-ROW1, ROW2, COL1, COL2 = 870, 1098, 514, 748
-BTNS = {n: (GX + c * U, GY + r * U, w * U, h * U) for n, (c, r, w, h) in
-        {"coffee": (31, 146, 32, 28), "nap": (68, 146, 33, 28), "debug": (107, 146, 31, 28)}.items()}
-# the screen: cells 38..132 x 70..136 of the shell, plus a 1-cell ink border. rows below are relative to it.
-SX, SY, SW, SH = 38, 70, 95, 67
-LCDBOX = (GX + (SX - 1) * U, GY + (SY - 1) * U, (SW + 2) * U, (SH + 2) * U)
-HEADH, FLOORR, STATR = 11, 53, 55
-CXC = 54
+CROP = (118, 0, 1020, 1242)
+ROW1, ROW2, COL1, COL2 = 870, 1098, 511, 745
+LCDBOX = (338, 398, 577, 442)
+HEAD_Y, FIELD_Y, FLOOR, FOOT_Y = 398, 490, 716, 740
+CX = 627
+BTNS = {"coffee": (306, 876, 190, 168), "nap": (528, 876, 198, 168), "debug": (757, 876, 189, 168)}
 SCALE = 1 / 3
 INK, HEAD, FIELD, GRID, FLOORC = "#1c1c3a", "#262743", "#c7e4f8", "#bcdcf3", "#8aa9dc"
-DIM, OFF = "#3d3f66", "#a9c6e8"
-GREENS = [DIM, "#0e4429", "#006d32", "#26a641", "#69dc7e"]
+XPON, XPOFF, BAR = "#d18efa", "#4f447a", "#312e56"
+GREENS = ["#3a3d5c", "#0e4429", "#006d32", "#26a641", "#69dc7e"]
 FONT = "dgpx," + "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
-ADV = {**{c: 7 for c in "ABCDGHJKOPQRSU0234567890"}, **{c: 6 for c in "EFLTZ1-/"},
-       **{c: 8 for c in "MNVWXY+"}, " ": 4, "I": 4, "!": 4, ".": 4}
 SHEET = {"BABY": "baby", "TODDLER": "toddler", "KID": "child", "TEEN": "teen", "ADULT": "adult", "ELDER": "elder"}
 # seconds per loop; frames step through it evenly
 SPEED = {"idle": 2.4, "code": .9, "nap": 2.6, "eat": 1.4, "happy": 1.2, "sad": 2.4}
 
-PAL = {"k": "#1c1c3a", "r": "#e5484d", "o": "#f26b2a", "w": "#ffffff", "c": "#fc74ac", "y": "#f5b83d",
-       "m": "#8f6cf2", "d": DIM}
-BUGC = [".k.....k.", "..k...k..", "..kkkkk..", ".krrkrrk.", "krwrkrrrk", ".krrkrrk.", "krrrkrrrk", ".kkkkkkk."]
+PAL = {"k": "#1c1c3a", "r": "#e5484d", "o": "#f26b2a", "w": "#ffffff", "c": "#fc74ac", "g": "#7ee0d4"}
+BUGC = [".k.k.", "krrrk", "rrkrr", "krrrk", ".r.r."]
 CRABC = ["o.......o", "oo.....oo", ".ooooooo.", "ookoookoo", "ooooooooo", "o.o...o.o"]
 HEART = [".cc.cc.", "ccccccc", "ccccccc", ".ccccc.", "..ccc..", "...c..."]
-MINI = ["..www..", ".wwwww.", "ww.w.ww", "w.....w", "ww...ww", ".ww.ww.", "..w.w.."]  # Octicons mark-github, 7x7
-BOLT = ["..y", ".yy", "yy.", "y.."]
-MOON = [".mm", "mm.", "mm.", ".mm"]
-STAR = [".c.", "ccc", ".c.", "c.c"]
+BRANCH = ["g...g", "g...g", "g..g.", "g.g..", "gg...", "g....", "g...."]
 STAGES = [(0, "baby", "BABY"), (1, "toddler", "TODDLER"), (3, "kid", "KID"), (7, "teen", "TEEN"),
           (14, "grown-up dev", "ADULT"), (30, "wise elder dev", "ELDER")]
 REACT_HOURS, GRUMPY_HOURS, RUST_HOURS = 6, 24, 48
 
 
-def gx(c):
-    return GX + (SX + c) * U
-
-
-def gy(r):
-    return GY + (SY + r) * U
-
-
-def box(c, r, w, h, fill, extra=""):
-    return f'<rect x="{gx(c)}" y="{gy(r)}" width="{w * U}" height="{h * U}" fill="{fill}"{extra}/>'
-
-
-def cpx(rows, c0, r0, cls="", tint=None):
-    r = "".join(box(c0 + x, r0 + y, 1, 1, tint or PAL[ch]) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch in PAL)
+def cpx(rows, x0, y0, s, cls="", tint=None):
+    r = "".join(f'<rect x="{x0 + x * s}" y="{y0 + y * s}" width="{s}" height="{s}" fill="{tint or PAL[c]}"/>'
+                for y, row in enumerate(rows) for x, c in enumerate(row) if c in PAL)
     return f'<g{cls}>{r}</g>'
-
-
-def width(s):
-    return sum(ADV.get(c, 7) for c in s.upper())
-
-
-def txt(c, r, s, fill=INK, anchor="start", size=1, extra=""):
-    """pixel text whose capitals fill rows r..r+5*size-1, starting at cell c."""
-    return (f'<text x="{gx(c)}" y="{gy(r + 5 * size)}" text-anchor="{anchor}" font-family="{FONT}" '
-            f'font-size="{48 * size}" fill="{fill}"{extra}>{s}</text>')
 
 
 _uri = {}
@@ -105,18 +74,11 @@ def uri(name):
 
 
 def dims(name):
-    """size in grid cells (art is stored at 4x)"""
-    w, h = struct.unpack(">II", (ART / name).read_bytes()[16:24])
-    return w // 4, h // 4
+    return struct.unpack(">II", (ART / name).read_bytes()[16:24])
 
 
 def img(name, x, y, w, h, extra=""):
     return f'<image href="{uri(name)}" x="{x}" y="{y}" width="{w}" height="{h}" preserveAspectRatio="none"{extra}/>'
-
-
-def cimg(name, c, r, extra=""):
-    w, h = dims(name)
-    return img(name, gx(c), gy(r), w * U, h * U, extra)
 
 
 _meta = None
@@ -156,7 +118,7 @@ def mood(st):
 
 
 def t(x, y, s, size, fill=INK, anchor="start", extra=""):
-    return (f'<text x="{x}" y="{y}" text-anchor="{anchor}" font-family="{FONT}" '
+    return (f'<text x="{x}" y="{y}" text-anchor="{anchor}" font-family="{FONT}" font-weight="700" '
             f'font-size="{size}" fill="{fill}"{extra}>{s}</text>')
 
 
@@ -188,15 +150,18 @@ def anim(st):
 
 
 def girl(st):
-    """Byte's animation frames, stacked; CSS shows one at a time. Feet sit on the floor."""
+    """Byte's animation frames, stacked; CSS shows one at a time. Feet sit on the floor line."""
     sheet, a = SHEET[stage(st)[2]], anim(st)
     fr = frames(sheet, a)
-    bottom = max(by + h for by, w, h in fr)
+    tall = max(f[1] + f[3] for f in fr) - min(f[1] for f in fr)
+    s = min(3.0, 222 / tall)
+    bottom = max(f[1] + f[3] for f in fr)
     n, dur = len(fr), SPEED[a]
     out = []
-    for i, (by, w, h) in enumerate(fr):
+    for i, (bx, by, w, h) in enumerate(fr):
+        x, y = CX - w * s / 2, FLOOR - (bottom - by) * s
         style = f' class="fr fr{i}" style="animation:k{n} {dur}s steps(1) {-dur * ((n - i) % n) / n:.2f}s infinite"' if n > 1 else ""
-        out.append(img(f"girl/{sheet}-{a}-{i}.png", gx(CXC - w // 2), gy(FLOORR - (bottom - by)), w * U, h * U, style))
+        out.append(img(f"girl/{sheet}-{a}-{i}.png", round(x, 1), round(y, 1), round(w * s, 1), round(h * s, 1), style))
     return "".join(out)
 
 
@@ -208,74 +173,74 @@ def squares(st):
         d = date.fromordinal(date.today().toordinal() - 29 + i).isoformat()
         n = days.get(d, 0)
         lvl = 0 if n == 0 else 1 if n == 1 else 2 if n <= 3 else 3 if n <= 6 else 4
-        out.append(box(11 + (i // 3) * 3, 1 + (i % 3) * 3, 2, 2, GREENS[lvl]))
+        out.append(f'<rect x="{438 + (i // 3) * 13}" y="{424 + (i % 3) * 13}" width="11" height="11" fill="{GREENS[lvl]}"/>')
     return "".join(out)
-
-
-def meter(icon, c, n, of, on):
-    return cpx(icon, c, 62) + "".join(box(c + 4 + i * 3, 62, 2, 4, on if i < n else OFF) for i in range(of))
 
 
 def lcd(st):
     """the live screen. independent groups: #status #props #character #pop #stats."""
     act, cond, abbr = recent(st), condition(st), stage(st)[2]
     jit = st.get("jitter", 0) >= JITTERY
-    hearts = "".join(cpx(HEART, 71 + i * 8, 3, tint=None if i < mood(st) else DIM) for i in range(3))
-    status = box(0, 0, SW, HEADH, HEAD) + cpx(MINI, 2, 2) + squares(st) + txt(43, 3, f"D{day(st)}", "#e9e6ff") + hearts
-    cat, mug = dims("cat.png"), dims("mug.png")
-    props = cimg("cat.png", 1, FLOORR - cat[1])
+    lx, ly, lw, lh = LCDBOX
+    hearts = "".join(cpx(HEART, 802 + i * 34, 432, 4, tint=None if i < mood(st) else XPOFF) for i in range(3))
+    status = (f'<rect x="{lx}" y="{HEAD_Y}" width="{lw}" height="{FIELD_Y - HEAD_Y}" fill="{HEAD}"/>'
+              + img("octo.png", 356, 412, 66, 64) + squares(st)
+              + cpx(BRANCH, 586, 430, 4) + t(612, 456, f"{abbr} D{day(st)}", 19, "#e9e6ff") + hearts)
+    props = img("cat.png", 352, FLOOR - 78, 142, 78)
     if act != "nap":
-        props += cimg("mug.png", SW - 2 - mug[0], FLOORR - mug[1], ' class="steam"' if act == "coffee" else "")
+        props += img("mug.png", 790, FLOOR - 156, 95, 156, ' class="steam"' if act == "coffee" else "")
     pop = ""
     if act == "coffee":
-        pop = "ZING!" if jit else "+NRG"
+        pop = "ZING!" if jit else "+2 NRG"
     elif act == "nap":
-        props += "".join(txt(c, r, z, "#8f6cf2", size=sz, extra=' class="zz"') for c, r, sz, z in
-                         ((76, 44, 1, "z"), (81, 35, 1, "Z"), (85, 22, 2, "Z")))
-        pop = "+REST"
+        props += "".join(t(800 + dx, dy, z, fs, "#8f6cf2", extra=' class="zz"') for dx, dy, fs, z in
+                         ((0, 700, 28, "z"), (26, 660, 36, "Z"), (56, 612, 46, "Z")))
+        pop = "+3 REST"
     elif act == "debug":
         pop = "FIXED!" if st["bugs"] == 0 else "-1 BUG"
     elif cond == "rust":
-        props += cpx(CRABC, 70, FLOORR - 6, ' class="bug"')
-        pop = "RUST!"
+        props += cpx(CRABC, 760, FLOOR - 42, 7, ' class="bug"')
+        pop = "IN RUST"
     elif cond == "grumpy":
         pop = "UGH"
     elif jit:
         pop = "!!"
-    for bc, br in [(8, 24), (82, 14), (25, 31)][:st["bugs"]]:
-        props += cpx(BUGC, bc, br, ' class="bug"')
+    for i, (bx, by) in enumerate([(366, 512), (862, 512), (470, 560)][:st["bugs"]]):
+        props += cpx(BUGC, bx, by, 8, ' class="bug"')
     poptxt = ""
     if pop:
-        w = width(pop) + 2
-        poptxt = (f'<g class="pop">{box(2, 13, w, 9, INK)}{box(3, 14, w - 2, 7, "#fff")}'
-                  + txt(3, 15, pop) + "</g>")
+        w = len(pop) * 17 + 24
+        poptxt = (f'<g class="pop"><rect x="{CX + 70}" y="506" width="{w}" height="40" fill="#fff" stroke="{INK}" stroke-width="5"/>'
+                  + t(CX + 70 + w / 2, 535, pop, 22, INK, "middle") + "</g>")
     x, lv = xp(st), level(st)
-    stats = (txt(1, 56, abbr) + txt(SW - 1, 56, f"LV {lv}", anchor="end")
-             + meter(BOLT, 2, st["energy"], 10, PAL["y"]) + meter(MOON, 39, st["rest"], 10, PAL["m"])
-             + meter(STAR, 76, (x % 100) // 20, 5, PAL["c"]))
-    night = box(0, HEADH, SW, FLOORR - HEADH, "#3a2a6a", ' opacity=".22"') if act == "nap" else ""
-    lx, ly, lw, lh = LCDBOX
-    return (f'<rect x="{lx}" y="{ly + U}" width="{lw}" height="{lh - 2 * U}" fill="{INK}"/>'
-            f'<rect x="{lx + U}" y="{ly}" width="{lw - 2 * U}" height="{lh}" fill="{INK}"/>'
-            + box(0, 0, SW, SH, FIELD) + box(0, HEADH, SW, FLOORR - HEADH, "url(#grid)")
-            + box(0, FLOORR, SW, 2, FLOORC)
-            + f'{night}<g id="status">{status}</g><g id="props">{props}</g>'
+    filled = (x % 100) * 16 // 100
+    segs = "".join(f'<rect x="{438 + i * 24.5}" y="782" width="21" height="16" fill="{XPON if i < filled else XPOFF}"/>' for i in range(16))
+    word = ("JITTERY" if jit else {"rust": "RUSTY", "grumpy": "GRUMPY"}.get(cond) or ["", "MEH", "OK", "HAPPY"][mood(st)])
+    stats = (t(366, 766, f"LVL {lv}", 24) + t(470, 766, f"XP {x:,}", 24) + t(890, 766, f"ENERGY {st['energy']}/10", 24, INK, "end")
+             + f'<rect x="430" y="775" width="400" height="30" fill="{BAR}"/>' + segs
+             + t(366, 830, f"REST {st['rest']}/10  BUGS {st['bugs']}", 17, "#4a4a7a")
+             + t(890, 830, word, 17, "#b8336a", "end"))
+    night = f'<rect x="{lx}" y="{FIELD_Y}" width="{lw}" height="{FLOOR - FIELD_Y}" fill="#3a2a6a" opacity=".22"/>' if act == "nap" else ""
+    return (f'<rect x="{lx}" y="{ly}" width="{lw}" height="{lh}" fill="{FIELD}"/>'
+            f'<rect x="{lx}" y="{FIELD_Y}" width="{lw}" height="{FLOOR - FIELD_Y}" fill="url(#grid)"/>'
+            f'<rect x="{lx}" y="{FLOOR}" width="{lw}" height="5" fill="{FLOORC}"/>'
+            f'{night}<g id="status">{status}</g><g id="props">{props}</g>'
             f'<g id="character"><g class="{"jit" if jit and act != "nap" else "bob"}">{girl(st)}</g></g>'
             f'<g id="pop">{poptxt}</g><g id="stats">{stats}</g>')
 
 
-GRIDDEF = (f'<pattern id="grid" x="{GX}" y="{GY}" width="{4 * U}" height="{4 * U}" patternUnits="userSpaceOnUse">'
-           f'<rect width="{4 * U}" height="{4 * U}" fill="{FIELD}"/><rect width="{U}" height="{U}" fill="{GRID}"/></pattern>')
+GRIDDEF = ('<pattern id="grid" width="9" height="9" patternUnits="userSpaceOnUse">'
+           f'<rect width="9" height="9" fill="{FIELD}"/><rect width="7" height="7" fill="{GRID}"/></pattern>')
 CSS = ("@keyframes k2{0%,49.9%{opacity:1}50%,100%{opacity:0}}@keyframes k3{0%,33.2%{opacity:1}33.3%,100%{opacity:0}}"
        "@keyframes w{0%,49%{transform:translateX(0)}50%,100%{transform:translateX(6px)}}.bug{animation:w .8s steps(1) infinite}"
-       "@keyframes bob{0%,49%{transform:translateY(0)}50%,100%{transform:translateY(-6px)}}.bob{animation:bob 1.6s steps(1) infinite}"
-       "@keyframes jit{0%,32%{transform:translateX(-6px)}33%,65%{transform:translateX(6px)}66%,100%{transform:translateX(0)}}"
+       "@keyframes bob{0%,49%{transform:translateY(0)}50%,100%{transform:translateY(-4px)}}.bob{animation:bob 1.6s steps(1) infinite}"
+       "@keyframes jit{0%,32%{transform:translateX(-4px)}33%,65%{transform:translateX(4px)}66%,100%{transform:translateX(0)}}"
        ".jit{animation:jit .3s steps(1) infinite}"
-       "@keyframes up{0%{transform:translateY(12px);opacity:0}15%,75%{transform:translateY(0);opacity:1}100%{transform:translateY(-6px);opacity:0}}"
+       "@keyframes up{0%{transform:translateY(10px);opacity:0}15%,75%{transform:translateY(0);opacity:1}100%{transform:translateY(-6px);opacity:0}}"
        ".pop{animation:up 3s steps(6) infinite}"
        "@keyframes zz{0%{transform:translateY(8px);opacity:0}30%,70%{opacity:1}100%{transform:translateY(-16px);opacity:0}}"
        ".zz{animation:zz 2.4s steps(6) infinite}.zz:nth-of-type(2){animation-delay:.6s}.zz:nth-of-type(3){animation-delay:1.2s}"
-       "@keyframes st{0%,49%{transform:translateY(0)}50%,100%{transform:translateY(-6px)}}.steam{animation:st 1s steps(1) infinite}"
+       "@keyframes st{0%,49%{transform:translateY(0)}50%,100%{transform:translateY(-4px)}}.steam{animation:st 1s steps(1) infinite}"
        "image{image-rendering:pixelated}"
        "@media (prefers-reduced-motion:reduce){*{animation:none!important}.fr{opacity:0}.fr0{opacity:1}}")
 
