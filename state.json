@@ -1,9 +1,20 @@
 {
   "born": "2026-11-05",
-  "energy": 6,
-  "rest": 5,
+  "energy": 8,
+  "rest": 4,
   "bugs": 1,
-  "total": 0,
-  "last": null,
-  "users": {}
+  "total": 1,
+  "last": {
+    "action": "coffee",
+    "user": "ashleymcnamara",
+    "at": "2026-11-05T18:29:01+00:00"
+  },
+  "users": {
+    "ashleymcnamara": {
+      "count": 1,
+      "first": "2026-11-05",
+      "last_day": "2026-11-05",
+      "streak": 1
+    }
+  }
 }
