@@ -157,7 +157,7 @@ def render(st):
     v = int(time.time())
     btns = "".join(
         f'<a href="https://github.com/{REPO}/issues/new?title={quote("pet|" + n)}&body={quote(issue_body(n))}">'
-        f'<img src="egg/btn-{n}.svg?v={v}" width="100" alt="{n}"></a>' for n, _ in BUTTONS)
+        f'<img src="egg/btn-{n}.svg?v={v}" width="100" align="top" alt="{n}"></a>' for n, _ in BUTTONS)
     last = st.get("last")
     top = sorted(st["users"].items(), key=lambda kv: -kv[1]["count"])[:3]
     line = []
@@ -172,7 +172,7 @@ def render(st):
 
 A tiny pixel developer the community raises together. Press a button, hit **Submit**, and {NAME} reacts here in about 30 seconds.
 
-<img src="egg/top.svg?v={v}" width="300" alt="{NAME}"><br>{btns}<br><img src="egg/bottom.svg?v={v}" width="300" alt="">
+<img src="egg/top.svg?v={v}" width="300" align="top" alt="{NAME}"><br>{btns}<br><img src="egg/bottom.svg?v={v}" width="300" align="top" alt="">
 
 <sub>{" · ".join(line)}</sub>
 
