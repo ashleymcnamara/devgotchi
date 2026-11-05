@@ -224,10 +224,12 @@ def act(title, user):
               "nap": f"Rest {before['rest']} → {st['rest']}",
               "debug": f"Bugs {before['bugs']} → {st['bugs']}"}[a]
     if first:
-        hi = f"Hi @{user}, you're caretaker **#{len(st['users'])}**! 💖"
+        hi = f"Hi @{user}, you're caretaker **no. {len(st['users'])}**! 💖"
     else:
         streak = f" · 🔥 **{u['streak']}-day streak**" if u["streak"] > 1 else ""
-        hi = f"Welcome back @{user}, that's visit **#{u['count']}**{streak}."
+        n = u["count"]
+        suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        hi = f"Welcome back @{user}, that's your **{n}{suf} visit**{streak}."
     egg = f"https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg"
     return (f"{emo} **{NAME} {did}!** {change}.\n\n{hi}\n\n"
             f'<a href="https://github.com/{REPO}"><img src="{egg}" width="240" alt="{NAME} reacting"></a>\n\n'
