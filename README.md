@@ -1,18 +1,24 @@
 <div align="center">
 
-# 🥚 devgotchi
+<img src="egg/title.svg?v=1793920057" width="680" alt="devgotchi: raise a tiny dev, together">
 
-Byte is a tiny pixel developer the community raises together. Press a button, hit **Create**, and she replies to you in about 30 seconds.<br>
-She grows up from a baby to a teen with headphones to a wise elder dev, and after 60 days a new egg hatches. Neglect her and she starts rewriting everything in Rust.
+Byte is a tiny pixel dev the internet raises together.<br>
+Press a button on the egg, hit **Create**, and she replies to you in about 30 seconds.
 
-<a href="https://ashleymcnamara.github.io/devgotchi/"><img src="egg/top.svg?v=1793919377" width="340" align="top" alt="devgotchi: Byte is a baby on day 1, level 1. She's cheering. Her sleeping cat is next to her."></a><br><a href="https://ashleymcnamara.github.io/devgotchi/?do=coffee"><img src="art/row-coffee.png" width="131" align="top" alt="Pour Byte a coffee"></a><a href="https://ashleymcnamara.github.io/devgotchi/?do=nap"><img src="art/row-nap.png" width="78" align="top" alt="Send Byte to bed"></a><a href="https://ashleymcnamara.github.io/devgotchi/?do=debug"><img src="art/row-debug.png" width="131" align="top" alt="Help Byte squash a bug"></a><br><img src="art/bottom.png" width="340" align="top" alt="">
+<a href="https://ashleymcnamara.github.io/devgotchi/"><img src="egg/top.svg?v=1793920057" width="340" align="top" alt="devgotchi: Byte is a baby on day 1, level 1. She's cheering. Her sleeping cat is next to her."></a><br><a href="https://ashleymcnamara.github.io/devgotchi/?do=coffee"><img src="art/row-coffee.png" width="131" align="top" alt="Pour Byte a coffee"></a><a href="https://ashleymcnamara.github.io/devgotchi/?do=nap"><img src="art/row-nap.png" width="78" align="top" alt="Send Byte to bed"></a><a href="https://ashleymcnamara.github.io/devgotchi/?do=debug"><img src="art/row-debug.png" width="131" align="top" alt="Help Byte squash a bug"></a><br><img src="art/bottom.png" width="340" align="top" alt="">
 
-**💖 She's doing great. Any button keeps her happy.**<br><sub>Byte becomes a toddler tomorrow</sub>
+<img src="egg/bubble.svg?v=1793920057" width="680" alt="She's doing great. Any button keeps her happy. Byte becomes a toddler tomorrow.">
 
-<sub>recently: @ashleymcnamara · 1 caretaker · 12 actions</sub>
+<sub>💕 raised by @ashleymcnamara · 1 caretaker · 12 presses</sub>
 
-<sub>☕ +energy (too much and she gets jittery) · 💤 +rest, +energy, calms her down · 🐛 −1 bug, costs energy, +XP</sub>
+<br>
 
-<sub>one press per person per hour · lives on [@ashleymcnamara's profile](https://github.com/ashleymcnamara)</sub>
+<img src="egg/care.svg?v=1793920057" width="680" alt="How to care for her. Coffee gives energy, but too much makes her jittery. A nap gives rest and energy and calms her down. Debugging squashes a bug for XP and costs a little energy. One press per person, per hour.">
+
+<img src="egg/life.svg?v=1793920057" width="680" alt="How she grows: baby, toddler, kid, teen, dev, then a wise elder. After day 60 a new egg hatches. She's a baby right now.">
+
+<img src="egg/neglect.svg?v=1793920057" width="680" alt="If you forget her: every 6 hours she gets tired and bugs pile up. After 1 day she's grumpy. After 2 days she starts rewriting everything in Rust. She never dies, and one press cheers her right up.">
+
+<sub>🥚 also hiding on [@ashleymcnamara's profile](https://github.com/ashleymcnamara) · [play in your browser](https://ashleymcnamara.github.io/devgotchi/)</sub>
 
 </div>

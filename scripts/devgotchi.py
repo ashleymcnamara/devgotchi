@@ -328,6 +328,226 @@ def preview(st, a):
     return sim
 
 
+# ---- README cards: pixel stickers around the egg, drawn with the same font and sprites as the screen ----
+INK, CARD, PINK, PINK2, BLUSH, PLUM, LAV, SUN, RUST = ("#2a1b3d", "#fff6fb", "#ff5fa2", "#f7a8c4", "#fadced",
+                                                     "#b8336a", "#efeaff", "#ffd36b", "#f26b2a")
+CW = 680
+EGGPX = ["....XXXXX....", "..XXPPPPPXX..", ".XPHHPPPPPDX.", ".XPHPPPPPPDX.", "XPPPPPPPPPPDX",
+         "XPPLLLLLLLPDX", "XPPLSSSSSLPDX", "XPPLSSSSSLPDX", "XPPLSSSSSLPDX", "XPPLLLLLLLPDX",
+         "XPPPPPPPPPPDX", "XPPOPPOPPOPDX", ".XPPPPPPPPDX.", "..XXDDDDDXX..", "....XXXXX...."]
+EGGPAL = {"X": INK, "P": PINK2, "H": "#ffffff", "D": "#e07aa4", "L": BLUSH, "S": LAV, "O": SUN}
+SPARK = ["..k..", "..k..", "kk.kk", "..k..", "..k.."]
+ZZZ = [".....kkk", "......k.", ".....kkk", "kkkk....", "...k....", "..k.....", ".k......", "kkkk...."]
+CARD_CSS = ("image{image-rendering:pixelated}.soft{image-rendering:auto}"
+            "@keyframes k2{0%,49.9%{opacity:1}50%,100%{opacity:0}}@keyframes k3{0%,33.2%{opacity:1}33.3%,100%{opacity:0}}"
+            ".fr{opacity:0}@keyframes tw{0%,59%{opacity:1}60%,100%{opacity:.15}}.tw{animation:tw 1.6s steps(1) infinite}"
+            ".tw2{animation-delay:.8s}@keyframes bob{0%,49%{transform:translateY(0)}50%,100%{transform:translateY(-4px)}}"
+            ".bob{animation:bob 1s steps(1) infinite}@keyframes w{0%,49%{transform:translateX(0)}50%,100%{transform:translateX(3px)}}"
+            ".walk{animation:w .7s steps(1) infinite}"
+            "@media (prefers-reduced-motion:reduce){*{animation:none!important}.fr{opacity:0}.fr0{opacity:1}}")
+
+
+def T(x, top, s, size=16, anchor="start", fill=INK, extra=""):
+    """pixel text placed by its top edge (the font's caps are 5/8 of the size tall)."""
+    return txt(x, top + size * 5 / 8, s, size, anchor, fill, extra)
+
+
+def px(rows, x0, y0, s, pal, cls=""):
+    r = "".join(f'<rect x="{x0 + x * s}" y="{y0 + y * s}" width="{s}" height="{s}" fill="{pal[c] if isinstance(pal, dict) else pal}"/>'
+                for y, row in enumerate(rows) for x, c in enumerate(row) if c != "." and (not isinstance(pal, dict) or c in pal))
+    return f'<g{cls}>{r}</g>'
+
+
+def tw(s, size=16):
+    global _glyphs
+    if _glyphs is None:
+        txt(0, 0, "a")
+    gl = _glyphs["glyphs"]
+    return sum(gl.get(c, gl["?"])["adv"] for c in s) * size / _glyphs["size"]
+
+
+def wrap(s, width, size=16):
+    lines, cur = [], ""
+    for w in s.split():
+        if cur and tw(cur + " " + w, size) > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    return lines + [cur]
+
+
+def plate(x, y, w, h, fill=CARD, b=4, shadow=PINK2):
+    """a chunky pixel card: notched corners, ink outline, offset pink shadow."""
+    def notch(x, y, w, h, c):
+        return (f'<rect x="{x + b}" y="{y}" width="{w - 2 * b}" height="{h}" fill="{c}"/>'
+                f'<rect x="{x}" y="{y + b}" width="{w}" height="{h - 2 * b}" fill="{c}"/>')
+    sh = notch(x + b, y + b, w, h, shadow) if shadow else ""
+    return sh + notch(x, y, w, h, INK) + notch(x + b, y + b, w - 2 * b, h - 2 * b, fill)
+
+
+def tab(x, y, label, fill=PINK, ink=INK, icon=""):
+    w = round(tw(label)) + 28 + (22 if icon else 0)
+    return plate(x, y, w, 32, fill, shadow=None) + icon + T(x + 14 + (22 if icon else 0), y + 8, label, 16, fill=ink), w
+
+
+def card(h, title, body, icon="", title_fill=PINK):
+    t, _ = tab(24, 0, title, title_fill, icon=icon)
+    return plate(0, 16, CW - 4, h - 20) + t + body
+
+
+def sticker(view_h, inner, alt, w=CW):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {view_h}" width="{w}" height="{view_h}" '
+            f'shape-rendering="crispEdges" role="img" aria-label="{alt}"><title>{alt}</title><style>{CARD_CSS}</style>{inner}</svg>\n')
+
+
+def pose(sheet, a, cx, floor, cls="", animate=True, sil=None):
+    fr = frames(sheet, a)
+    bottom = max(f[1] + f[3] for f in fr)
+    fr = fr if animate else fr[:1]
+    out, n = [], len(fr)
+    for i, (bx, by, w, h) in enumerate(fr):
+        st_ = f' class="fr fr{i}" style="animation:k{n} {SPEED[a]}s steps(1) {-SPEED[a] * ((n - i) % n) / n:.2f}s infinite"' if n > 1 else ""
+        f = f' filter="url(#{sil})"' if sil else ""
+        out.append(img(f"girl/{sheet}-{a}-{i}.png", round(cx - w / 2), floor - (bottom - by), w, h, st_ + f))
+    return f'<g{cls}>{"".join(out)}</g>'
+
+
+def title_card():
+    word, size = "devgotchi", 48
+    w = tw(word, size)
+    x, y = (CW - w) / 2, 14
+    k = size / 8
+    out = "".join(T(x + dx, y + dy, word, size, fill=INK) for dx, dy in
+                  [(-k, 0), (k, 0), (0, -k), (0, k), (-k, -k), (k, k), (-k, k), (k, -k), (k * 2, k * 2), (k, k * 2), (k * 2, k)])
+    out += T(x, y, word, size, fill=PINK) + T(x, y, word, size, fill="#ffffff", extra=f' clip-path="url(#hi)"')
+    clip = f'<defs><clipPath id="hi"><rect x="0" y="{y}" width="{CW}" height="{k}"/></clipPath></defs>'
+    stars = (px(SPARK, x - 52, 18, 4, SUN, ' class="tw"') + px(SPARK, x + w + 26, 8, 3, PINK2, ' class="tw tw2"')
+             + px(SPARK, x + w + 40, 50, 4, SUN, ' class="tw tw2"') + px(SPARK, x - 34, 58, 3, PINK2, ' class="tw"')
+             + px(HEART, x + w + 8, 70, 3, {"c": PINK}))
+    tag = "RAISE A TINY DEV, TOGETHER"
+    tw_ = tw(tag)
+    pill = plate((CW - tw_) / 2 - 18, 84, tw_ + 36, 34, CARD, shadow=PINK2) + T(CW / 2, 94, tag, 16, "middle", fill=PLUM)
+    return sticker(126, clip + stars + out + pill, f"devgotchi: raise a tiny dev, together")
+
+
+def bubble_card(st):
+    want, why = need(st)
+    icon = {"coffee": px(MUG, 0, 0, 4, PAL), "debug": px(BUGC, 2, 2, 5, PAL), "nap": px(ZZZ, 0, 0, 4, {"k": "#6449c9"})}.get(
+        want, px(HEART, 4, 6, 5, {"c": PINK}))
+    lines = wrap(why, 420)
+    sub = f"{NAME} {upcoming(st)}."
+    bw, lh = 600, 24
+    subl = wrap(sub, 420)
+    h = 30 + (len(lines) + len(subl)) * lh + 2
+    x0 = (CW - bw) / 2
+    tail = (f'<rect x="{CW / 2 - 12}" y="4" width="24" height="16" fill="{INK}"/>'
+            f'<rect x="{CW / 2 - 8}" y="0" width="16" height="8" fill="{INK}"/>'
+            f'<rect x="{CW / 2 - 4}" y="8" width="8" height="16" fill="{CARD}"/>'
+            f'<rect x="{CW / 2 - 8}" y="14" width="16" height="10" fill="{CARD}"/>')
+    hearts = "".join(px(HEART, x0 + bw - 76 + i * 20, 38, 3, {"c": PINK if i < mood(st) else BLUSH}) for i in range(3))
+    body = "".join(T(x0 + 92, 40 + i * lh, l, 16, fill=INK) for i, l in enumerate(lines))
+    body += "".join(T(x0 + 92, 46 + (len(lines) + i) * lh, l, 16, fill=PLUM) for i, l in enumerate(subl))
+    ic = f'<g transform="translate({x0 + 30} {16 + (h - 28) / 2})"><g class="bob">{icon}</g></g>'
+    inner = plate(x0, 16, bw, h + 16) + tail + ic + body + hearts
+    return sticker(h + 40, inner, f"{why} {sub}")
+
+
+def coin(cx, cy, icon, r=11, s=4):
+    """a chunky yellow pixel button, like the ones on the egg."""
+    out = []
+    for j in range(-r, r):
+        half = int(((r - .5) ** 2 - (j + .5) ** 2) ** .5 + .5)
+        y = cy + j * s
+        out.append(f'<rect x="{cx - half * s}" y="{y}" width="{half * 2 * s}" height="{s}" fill="{INK}"/>')
+        inner = int(((r - 1.5) ** 2 - (j + .5) ** 2) ** .5 + .5) if abs(j + .5) < r - 1.5 else 0
+        if inner:
+            fill = "#fff2b8" if j < -r // 2 else SUN if j < r // 2 else "#f2b83d"
+            out.append(f'<rect x="{cx - inner * s}" y="{y}" width="{inner * 2 * s}" height="{s}" fill="{fill}"/>')
+    return "".join(out) + icon
+
+
+def care_card():
+    cols = [("COFFEE", ["+ ENERGY", "TOO MUCH =", "JITTERY"], px(MUG, -21, -21, 6, PAL)),
+            ("NAP", ["+ REST", "+ ENERGY", "CALMS HER"], px(ZZZ, -20, -20, 5, {"k": "#6449c9"})),
+            ("DEBUG", ["- 1 BUG", "+ XP", "COSTS ENERGY"], px(BUGC, -15, -15, 6, PAL))]
+    cw = (CW - 4 - 48) / 3
+    body = ""
+    for i, (lab, desc, icon) in enumerate(cols):
+        cx = round(24 + cw * i + cw / 2)
+        body += coin(cx, 92, f'<g transform="translate({cx} 92)"><g class="bob" style="animation-delay:{i * .33:.2f}s">{icon}</g></g>')
+        body += T(cx, 148, lab, 24, "middle", fill=INK)
+        body += "".join(T(cx, 184 + j * 24, d, 16, "middle", fill=PLUM) for j, d in enumerate(desc))
+    body += f'<rect x="28" y="266" width="{CW - 60}" height="4" fill="{BLUSH}"/>'
+    body += T(CW / 2, 284, "ONE PRESS PER PERSON, PER HOUR", 16, "middle", fill=INK)
+    return sticker(318, card(318, "HOW TO CARE FOR HER", body),
+                   "How to care for her. Coffee gives energy, but too much makes her jittery. A nap gives rest and energy and calms her down. "
+                   "Debugging squashes a bug for XP and costs energy. One press per person, per hour.")
+
+
+def life_card(st):
+    now_i = [x[2] for x in STAGES].index(stage(st)[2])
+    slots = [(SHEET[a], lab, d + 1) for d, _, a in STAGES for lab in [{"ADULT": "DEV", "TODDLER": "TOT"}.get(a, a)]] + [(None, "EGG", RETIRE_DAY + 1)]
+    sw = (CW - 4 - 32) / len(slots)
+    floor = 140
+    sil = ('<defs><filter id="sil"><feFlood flood-color="#c9bce8"/><feComposite in2="SourceAlpha" operator="in"/></filter></defs>')
+    body = sil
+    for i, (sheet, lab, d) in enumerate(slots):
+        cx = round(16 + sw * i + sw / 2)
+        if i == now_i:
+            body += plate(round(cx - sw / 2) + 2, 50, round(sw) - 4, 148, BLUSH, b=4, shadow=None)
+            body += f'<g class="bob">{px(HEART, cx - 8, 34, 3, {"c": PINK})}</g>'
+        if sheet:
+            body += pose(sheet, "idle", cx, floor, animate=i == now_i, sil=None if i <= now_i else "sil")
+        else:
+            body += px(EGGPX, cx - 26, floor - 60, 4, EGGPAL if now_i == len(slots) - 1 else {k: "#c9bce8" for k in EGGPAL})
+        on = i <= now_i
+        body += T(cx, 152, lab, 16, "middle", fill=INK if on else "#9a8bb8")
+        body += T(cx, 174, f"DAY {d}", 16, "middle", fill=PLUM if on else "#b3a6cf")
+    body += T(CW / 2, 214, f"SHE'S A {stage(st)[1].upper()} RIGHT NOW", 16, "middle", fill=PLUM)
+    names = ", ".join(f"{l.lower()} on day {d}" for _, l, d in slots)
+    return sticker(252, card(252, "HOW SHE GROWS", body),
+                   f"How she grows: {names}. She's a {stage(st)[1]} right now.")
+
+
+def neglect_card(st):
+    sheet = SHEET[stage(st)[2]]
+    pw = (CW - 4 - 48 - 2 * 28) / 3
+    xs = [24 + i * (pw + 28) for i in range(3)]
+    floor = 132
+    body = ""
+    for i, x in enumerate(xs):
+        fill = "#fff0e6" if i == 2 else LAV
+        body += plate(round(x), 52, round(pw), 150, fill, b=4, shadow=None)
+        if i < 2:
+            ax = round(x + pw + 6)
+            body += px(["k..", "kk.", "kkk", "kk.", "k.."], ax, 116, 4, INK)
+    # 6h: hearts drain, bugs move in
+    c0 = xs[0] + pw / 2
+    body += T(c0, 64, "EVERY 6 HRS", 16, "middle", fill=PLUM)
+    body += "".join(px(HEART, c0 - 38 + j * 26, 94, 4, {"c": PINK if j == 0 else "#d8cff5"}) for j in range(3))
+    body += px(BUGC, c0 - 34, 120, 4, PAL, ' class="walk"') + px(BUGC, c0 + 14, 128, 4, PAL)
+    body += T(c0, 164, "SHE GETS TIRED", 16, "middle", fill=INK) + T(c0, 184, "BUGS PILE UP", 16, "middle", fill=INK)
+    # 24h: grumpy
+    c1 = xs[1] + pw / 2
+    body += T(c1, 64, "AFTER 1 DAY", 16, "middle", fill=PLUM)
+    body += pose(sheet, "sad", round(c1), floor + 24, animate=True)
+    body += T(c1 + 44, 92, "ugh", 16, "middle", fill=PLUM)
+    body += T(c1, 182, "GRUMPY", 16, "middle", fill=INK)
+    # 48h: rust
+    c2 = xs[2] + pw / 2
+    body += T(c2, 64, "AFTER 2 DAYS", 16, "middle", fill=RUST)
+    body += pose(sheet, "sad", round(c2 - 22), floor + 8, animate=True)
+    body += px(CRABC, round(c2 + 14), floor - 26, 4, {"o": RUST, "k": INK}, ' class="walk"')
+    body += T(c2 + 32, 84, ".RS", 16, "middle", fill=RUST)
+    body += "".join(T(c2, 144 + j * 20, w, 16, "middle", fill=INK) for j, w in enumerate(["REWRITING", "EVERYTHING", "IN RUST"]))
+    foot = "SHE NEVER DIES. ONE PRESS CHEERS HER UP"
+    body += px(HEART, CW / 2 - tw(foot) / 2 - 24, 222, 3, {"c": PINK}) + T(CW / 2 + 4, 220, foot, 16, "middle", fill=INK)
+    return sticker(258, card(258, "IF YOU FORGET HER", body, title_fill=SUN),
+                   "If you forget her: every 6 hours she gets tired and bugs pile up. After 1 day she's grumpy. "
+                   "After 2 days she starts rewriting everything in Rust. She never dies. One press cheers her right up.")
+
+
 def render(st):
     EGG_DIR.mkdir(exist_ok=True)
     DOCS.mkdir(exist_ok=True)
@@ -358,22 +578,33 @@ def render(st):
         line.append("recently: " + " ".join(f"@{u}" for u in recent_users(st)))
     line.append(f'{plural(len(st["users"]), "caretaker")} · {plural(st["total"], "action")}')
     hint = (f"{ACTIONS[want][0]} " if want else "💖 ") + why
+    for name, body in {"title": title_card(), "bubble": bubble_card(st), "care": care_card(),
+                       "life": life_card(st), "neglect": neglect_card(st)}.items():
+        (EGG_DIR / f"{name}.svg").write_text(body)
+    w = round(cw * SCALE)
+    who = (" ".join(f"@{u}" for u in recent_users(st)) + " · ") if st["users"] else ""
     (ROOT / "README.md").write_text(f"""<div align="center">
 
-# 🥚 devgotchi
+<img src="egg/title.svg?v={v}" width="{CW}" alt="devgotchi: raise a tiny dev, together">
 
-{NAME} is a tiny pixel developer the community raises together. Press a button, hit **Create**, and she replies to you in about 30 seconds.<br>
-She grows up from a baby to a teen with headphones to a wise elder dev, and after {RETIRE_DAY} days a new egg hatches. Neglect her and she starts rewriting everything in Rust.
+Byte is a tiny pixel dev the internet raises together.<br>
+Press a button on the egg, hit **Create**, and she replies to you in about 30 seconds.
 
-<a href="{PAGES}"><img src="egg/top.svg?v={v}" width="{round(cw * SCALE)}" align="top" alt="{alt}"></a><br>{btns}<br><img src="art/bottom.png" width="{round(cw * SCALE)}" align="top" alt="">
+<a href="{PAGES}"><img src="egg/top.svg?v={v}" width="{w}" align="top" alt="{alt}"></a><br>{btns}<br><img src="art/bottom.png" width="{w}" align="top" alt="">
 
-**{hint}**<br><sub>{NAME} {upcoming(st)}</sub>
+<img src="egg/bubble.svg?v={v}" width="{CW}" alt="{why} {NAME} {upcoming(st)}.">
 
-<sub>{" · ".join(line)}</sub>
+<sub>💕 raised by {who}{plural(len(st["users"]), "caretaker")} · {st["total"]} {"press" if st["total"] == 1 else "presses"}</sub>
 
-<sub>☕ +energy (too much and she gets jittery) · 💤 +rest, +energy, calms her down · 🐛 −1 bug, costs energy, +XP</sub>
+<br>
 
-<sub>one press per person per hour · lives on [@{OWNER}'s profile]({PROFILE})</sub>
+<img src="egg/care.svg?v={v}" width="{CW}" alt="How to care for her. Coffee gives energy, but too much makes her jittery. A nap gives rest and energy and calms her down. Debugging squashes a bug for XP and costs a little energy. One press per person, per hour.">
+
+<img src="egg/life.svg?v={v}" width="{CW}" alt="How she grows: baby, toddler, kid, teen, dev, then a wise elder. After day {RETIRE_DAY} a new egg hatches. She's a {stage(st)[1]} right now.">
+
+<img src="egg/neglect.svg?v={v}" width="{CW}" alt="If you forget her: every 6 hours she gets tired and bugs pile up. After 1 day she's grumpy. After 2 days she starts rewriting everything in Rust. She never dies, and one press cheers her right up.">
+
+<sub>🥚 also hiding on [@{OWNER}'s profile]({PROFILE}) · [play in your browser]({PAGES})</sub>
 
 </div>
 """)
