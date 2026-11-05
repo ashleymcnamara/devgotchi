@@ -151,7 +151,7 @@ def shell():
 
     def part(box, name, colors=160):
         im = full.crop(box)
-        save(im.resize((im.width * 2 // 3, im.height * 2 // 3), Image.LANCZOS), name, colors)
+        save(im, name, colors)
 
     part(CROP, "shell.png")
     part((x0, y0, x1, ROW1), "top.png")
