@@ -66,7 +66,8 @@
       const ok = (u) => /^[A-Za-z0-9-]{1,39}$/.test(u);
       const top = Object.entries(st.users || {}).filter(([u]) => ok(u)).sort((a, b) => b[1].count - a[1].count).slice(0, 3);
       const who = $("#who");
-      who.textContent = `${Object.keys(st.users || {}).length} caretakers · ${st.total} presses`;
+      const n = Object.keys(st.users || {}).length, t = st.total || 0;
+      who.textContent = `${n} caretaker${n === 1 ? '' : 's'} · ${t} press${t === 1 ? '' : 'es'}`;
       if (top.length) {
         who.append(" · top: ");
         top.forEach(([u], i) => {
