@@ -1,29 +1,29 @@
 {
   "born": "2026-11-05",
-  "energy": 10,
+  "energy": 9,
   "rest": 6,
-  "bugs": 1,
-  "total": 4,
+  "bugs": 0,
+  "total": 5,
   "ticks": 1,
   "users": {
     "ashleymcnamara": {
-      "count": 4,
+      "count": 5,
       "first": "2026-11-05",
       "last_day": "2026-11-05",
       "streak": 1,
-      "at": "2026-11-05T20:25:56+00:00"
+      "at": "2026-11-05T20:30:04+00:00"
     }
   },
   "last": {
-    "action": "nap",
+    "action": "debug",
     "user": "ashleymcnamara",
-    "at": "2026-11-05T20:25:56+00:00"
+    "at": "2026-11-05T20:30:04+00:00"
   },
-  "last_care": "2026-11-05T20:25:56+00:00",
-  "xp": 20,
+  "last_care": "2026-11-05T20:30:04+00:00",
+  "xp": 35,
   "jitter": 0,
   "days": {
-    "2026-11-05": 3
+    "2026-11-05": 4
   },
   "seen_stage": "BABY"
 }
