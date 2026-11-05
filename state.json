@@ -1,17 +1,17 @@
 {
   "born": "2026-11-05",
-  "energy": 7,
-  "rest": 4,
+  "energy": 6,
+  "rest": 7,
   "bugs": 0,
-  "total": 2,
+  "total": 3,
   "last": {
-    "action": "debug",
+    "action": "nap",
     "user": "ashleymcnamara",
-    "at": "2026-11-05T18:31:03+00:00"
+    "at": "2026-11-05T18:31:54+00:00"
   },
   "users": {
     "ashleymcnamara": {
-      "count": 2,
+      "count": 3,
       "first": "2026-11-05",
       "last_day": "2026-11-05",
       "streak": 1
