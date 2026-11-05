@@ -22,13 +22,95 @@ ROWS = {"idle": (288, 361), "happy": (446, 511), "sad": (519, 583), "code": (591
         "eat": (670, 735), "nap": (742, 821)}
 
 
+# Octicons mark-github (16px, MIT, github.com/primer/octicons) snapped to its own 16x16 grid
+MARK = [
+    ".....######.....",
+    "...##########...",
+    "..############..",
+    ".###.######.###.",
+    ".###........###.",
+    "####........####",
+    "###..........###",
+    "###..........###",
+    "###..........###",
+    "####........####",
+    "#####......#####",
+    ".##.##....#####.",
+    ".##.......#####.",
+    "..##......####..",
+    "...###....###...",
+    "................",
+]
+INK, PAPER = (38, 37, 63), (255, 250, 253)
+
+
+def mark():
+    return np.array([[c == "#" for c in r] for r in MARK])
+
+
+def grow(m, n=1):
+    for _ in range(n):
+        g = m.copy()
+        g[1:] |= m[:-1]; g[:-1] |= m[1:]; g[:, 1:] |= m[:, :-1]; g[:, :-1] |= m[:, 1:]
+        m = g
+    return m
+
+
+def heal(a, box, icon):
+    """paint over the old icon by interpolating each row between the untouched pixels either side"""
+    x0, y0, x1, y1 = box
+    c = a[y0:y1, x0:x1]
+    m = grow(icon(c), 3)
+    xs = np.arange(c.shape[1])
+    for j in range(c.shape[0]):
+        k = ~m[j]
+        if m[j].any() and k.sum() >= 2:
+            for ch in range(3):
+                c[j, m[j], ch] = np.interp(xs[m[j]], xs[k], c[j, k, ch])
+
+
+def stamp(a, cx, cy, cell, ink, border=None):
+    m = mark()
+    if border is not None:
+        m = np.pad(m, 1)
+        plate = grow(m)
+    h = m.shape[0] * cell
+    x0, y0 = cx - h // 2, cy - h // 2
+    for j in range(m.shape[0]):
+        for i in range(m.shape[1]):
+            if m[j, i]:
+                col = ink
+            elif border is not None and plate[j, i]:
+                col = border
+            else:
+                continue
+            a[y0 + j * cell:y0 + (j + 1) * cell, x0 + i * cell:x0 + (i + 1) * cell] = col
+
+
+def octicons(a):
+    """swap the mockup's AI-drawn cat faces for the real GitHub mark"""
+    sticker = lambda c: (c.sum(2) < 330) | (c.min(2) >= 225)
+    heal(a, (545, 115, 712, 237), sticker)
+    stamp(a, 627, 176, 7, INK, PAPER)
+    heal(a, (945, 522, 1092, 664), sticker)
+    stamp(a, 1016, 593, 7, INK, PAPER)
+    heal(a, (798, 664, 838, 702), lambda c: c.sum(2) < 400)
+    stamp(a, 818, 683, 2, INK)
+    a[422:486, 358:424] = a[440, 365]
+    stamp(a, 391, 454, 3, (255, 255, 255))
+    return a
+
+
+def mockup():
+    return octicons(np.array(Image.open(KIT / "reference/approved-pixel-mockup.png").convert("RGB")).astype(int))
+
+
 def save(im, name, colors=96):
     im.quantize(colors, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(OUT / name, optimize=True)
 
 
 def shell():
-    m = Image.open(KIT / "reference/approved-pixel-mockup.png").convert("RGB")
-    a = np.array(m).astype(int)
+    a = mockup()
     h, w, _ = a.shape
     bg = a[5, 5]
     near = np.abs(a - bg).sum(2) < 40
@@ -66,7 +148,7 @@ def keyed(a, box, name):
 
 
 def props():
-    a = np.array(Image.open(KIT / "reference/approved-pixel-mockup.png").convert("RGB")).astype(int)
+    a = mockup()
     keyed(a, (358, 638, 500, 716), "cat.png")
     keyed(a, (785, 560, 880, 716), "mug.png")
     c = a[422:486, 358:424]
