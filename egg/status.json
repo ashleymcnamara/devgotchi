@@ -1,0 +1,10 @@
+{
+  "need": "debug",
+  "why": "There's 1 bug on her screen. Help her squash it!",
+  "next": "becomes a toddler tomorrow",
+  "recent": [
+    "ashleymcnamara"
+  ],
+  "stage": "baby",
+  "day": 1
+}

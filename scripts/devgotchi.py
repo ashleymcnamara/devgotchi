@@ -285,9 +285,38 @@ def day(st):
 PROMPTS = {"coffee": "☕ **Pour Byte a coffee**", "nap": "💤 **Send Byte to bed**", "debug": "🐛 **Help Byte squash a bug**"}
 
 
+def need(st):
+    """the button that helps most right now, and why, in Byte's words."""
+    if st.get("jitter", 0) >= JITTERY:
+        return "nap", "She's had way too much coffee. A nap would calm her down."
+    if st["bugs"] >= 3:
+        return "debug", f"There are {st['bugs']} bugs on her screen. Help her squash one!"
+    low = min(("rest", "nap"), ("energy", "coffee"), key=lambda kv: st[kv[0]])
+    if st[low[0]] <= 4:
+        return low[1], ("She can barely keep her eyes open. Send her to bed!" if low[1] == "nap"
+                        else "She's running on empty. She could really use a coffee!")
+    if st["bugs"]:
+        return "debug", f"There's {plural(st['bugs'], 'bug')} on her screen. Help her squash it!"
+    return None, "She's doing great. Any button keeps her happy."
+
+
+def upcoming(st):
+    d = day(st) - 1
+    nxt = [x for x in STAGES if x[0] > d]
+    if nxt:
+        n = nxt[0][0] - d
+        return f"becomes a {nxt[0][1]} {'tomorrow' if n == 1 else f'in {n} days'}"
+    n = RETIRE_DAY + 1 - d
+    return "a new egg hatches with the next press" if n <= 0 else f"a new egg hatches {'tomorrow' if n == 1 else f'in {n} days'}"
+
+
+def recent_users(st, n=5):
+    return [u for u, _ in sorted(st["users"].items(), key=lambda kv: kv[1].get("at") or "", reverse=True)[:n]]
+
+
 def issue_url(n):
     # GitHub's new issue page can ignore ?template=, so prefill title and body directly too.
-    body = f"{PROMPTS[n]}\n\nJust hit **Create** and a bot does the rest. {NAME} reacts on the egg in about 30 seconds.\n\n_(please don't edit the title)_"
+    body = f"{PROMPTS[n]}\n\nJust hit **Create** and a bot does the rest. {NAME} replies right here in about 30 seconds.\n\n_(please don't edit the title)_"
     return (f"https://github.com/{REPO}/issues/new?template={n}.md"
             f"&title={quote('pet|' + n, safe='')}&body={quote(body, safe='')}")
 
@@ -316,26 +345,29 @@ def render(st):
         {"repo": REPO, "name": NAME, "crop": list(CROP), "lcd": list(LCDBOX),
          "buttons": [{"id": n, "box": list(bx), "label": ACTIONS[n][1], "url": issue_url(n)} for n, bx in BTNS.items()]},
         indent=2) + "\n")
+    want, why = need(st)
+    (EGG_DIR / "status.json").write_text(json.dumps(
+        {"need": want, "why": why, "next": upcoming(st), "recent": recent_users(st), "stage": stage(st)[1], "day": day(st)},
+        indent=2) + "\n")
     v = int(time.time())
     widths = {"coffee": COL1 - x0, "nap": COL2 - COL1, "debug": x0 + cw - COL2}
     btns = "".join(f'<a href="{PAGES}?do={n}"><img src="art/row-{n}.png" width="{round(w * SCALE)}" align="top" alt="{ACTIONS[n][1]}"></a>'
                    for n, w in widths.items())
-    last = st.get("last")
-    top = sorted(st["users"].items(), key=lambda kv: -kv[1]["count"])[:3]
     line = []
-    if last:
-        line.append(f'last {last["action"]} from @{last["user"]}')
-    if top:
-        line.append("top caretakers: " + " ".join(f"@{u}" for u, _ in top))
+    if st["users"]:
+        line.append("recently: " + " ".join(f"@{u}" for u in recent_users(st)))
     line.append(f'{plural(len(st["users"]), "caretaker")} · {plural(st["total"], "action")}')
+    hint = (f"{ACTIONS[want][0]} " if want else "💖 ") + why
     (ROOT / "README.md").write_text(f"""<div align="center">
 
 # 🥚 devgotchi
 
-{NAME} is a tiny pixel developer the community raises together. Press a button, hit **Create**, and she reacts here in about 30 seconds.<br>
+{NAME} is a tiny pixel developer the community raises together. Press a button, hit **Create**, and she replies to you in about 30 seconds.<br>
 She grows up from a baby to a teen with headphones to a wise elder dev, and after {RETIRE_DAY} days a new egg hatches. Neglect her and she starts rewriting everything in Rust.
 
 <a href="{PAGES}"><img src="egg/top.svg?v={v}" width="{round(cw * SCALE)}" align="top" alt="{alt}"></a><br>{btns}<br><img src="art/bottom.png" width="{round(cw * SCALE)}" align="top" alt="">
+
+**{hint}**<br><sub>{NAME} {upcoming(st)}</sub>
 
 <sub>{" · ".join(line)}</sub>
 
@@ -350,7 +382,7 @@ She grows up from a baby to a teen with headphones to a wise elder dev, and afte
 def issue_body(n):
     emo, verb, _ = ACTIONS[n]
     return (f"{emo} **{verb}**\n\nJust hit **Submit new issue** and a bot does the rest. "
-            f"{NAME} will react on the egg in about 30 seconds.\n\n_(please don't edit the title)_")
+            f"{NAME} replies right here in about 30 seconds.\n\n_(please don't edit the title)_")
 
 
 def load():
@@ -434,6 +466,8 @@ def act(title, user, created=""):
         return (f"⏳ {NAME} is still processing your last visit, @{user}. "
                 f"Come back in about {plural(mins, 'minute')}!\n\n" + footer(st))
 
+    was_st = dict(st, last=None)
+    (EGG_DIR / "before.svg").write_text(svg(LCDBOX, LCDBOX[2], LCDBOX[3], lcd(was_st), f"Before: {describe(was_st)}"))
     hatched = None
     if day(st) > RETIRE_DAY:
         hatched = level(st)
@@ -482,7 +516,12 @@ def act(title, user, created=""):
         st["seen_stage"] = stage(st)[2]
         save(st)
     extra += f"\n\n_{STAGE_SAY[stage(st)[2]]}_"
-    return f"{emo} **{NAME} {did}!** {change}.{extra}\n\n{hi}\n\n" + footer(st)
+    raw = f"https://raw.githubusercontent.com/{REPO}/__SHA__/egg"
+    pics = (f'<img src="{raw}/before.svg" width="220" alt="Before: {describe(was_st)}"> ➜ '
+            f'<img src="{raw}/lcd.svg" width="220" alt="After: {describe(st)}">')
+    return (f"{emo} **{NAME} {did}!** {change}.{extra}\n\n{pics}\n\n{hi}\n\n"
+            f"**[← back to the egg]({PROFILE})** · <sub>{NAME} {upcoming(st)} · "
+            f"{plural(len(st['users']), 'caretaker')} so far</sub>")
 
 
 if __name__ == "__main__":

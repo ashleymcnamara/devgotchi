@@ -18,6 +18,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Let them know Byte heard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUM: ${{ github.event.issue.number }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/issues/$NUM/reactions" -f content=eyes --silent || true
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUM/comments" \
+                 -f body="🥚 *tap tap*… Byte is waking up. Your reply will appear right here in a few seconds." --jq .id || true)
+          echo "ACK=$ID" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Update Byte
@@ -44,9 +54,22 @@ jobs:
           NUM: ${{ github.event.issue.number }}
         run: |
           sed -i "s/__SHA__/$(git rev-parse HEAD)/" "$RUNNER_TEMP/comment.md"
-          gh issue comment "$NUM" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+          if [ -n "$ACK" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$ACK" -F body=@"$RUNNER_TEMP/comment.md" --silent \
+              || gh issue comment "$NUM" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+          else
+            gh issue comment "$NUM" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+          fi
           gh issue close "$NUM" --repo "$GITHUB_REPOSITORY" --reason completed
           gh issue lock "$NUM" --repo "$GITHUB_REPOSITORY" || true
+
+      - name: Don't leave them hanging
+        if: failure() && env.ACK != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$ACK" --silent \
+            -f body="😴 Byte dozed off before she could reply. Give it a minute and press the button again from [the egg](https://github.com/${GITHUB_REPOSITORY_OWNER})."
 
   tidy:
     if: >-

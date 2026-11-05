@@ -45,6 +45,14 @@ main { max-width: 560px; margin: 0 auto; padding: clamp(16px, 4vw, 40px) 16px 40
 .btn:active, .btn.down { transform: translateY(2%) scale(.93); filter: brightness(.92); }
 .btn:focus-visible { outline: 4px dashed var(--link); outline-offset: 2px; }
 .btn[disabled] { cursor: progress; }
+.btn.need::after {
+  content: ""; position: absolute; left: 50%; top: -14%; width: 18%; aspect-ratio: 1; translate: -50% 0;
+  background: #ff5fa2; border: 3px solid #2a1b3d; image-rendering: pixelated;
+  clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 50%);
+  animation: nudge .9s steps(2) infinite;
+}
+@keyframes nudge { 50% { translate: -50% -30%; } }
+.device.busy .btn.need::after { display: none; }
 .device.busy .btn:not(.down) { filter: grayscale(.4) brightness(.97); }
 
 /* LCD reactions; ids come from the rendered SVG */

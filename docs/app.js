@@ -9,7 +9,7 @@
   const $ = (s) => document.querySelector(s);
   const lcd = $("#lcd"), msg = $("#msg"), device = $("#device");
   const buttons = [...document.querySelectorAll(".btn")];
-  let urls = {}, busy = false;
+  let urls = {}, busy = false, status = null;
 
   const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } };
   const save = (v) => { try { localStorage.setItem(STORE, JSON.stringify({ ...load(), ...v })); } catch {} };
@@ -41,7 +41,7 @@
     msg.textContent = SAY[id];
     save({ last: id, at: Date.now() });
     const go = () => {
-      msg.textContent = "Opening GitHub. Hit Create and Byte reacts in about 30 seconds.";
+      msg.textContent = "Opening GitHub. Hit Create and Byte replies in about 30 seconds.";
       location.assign(urls[id]);
     };
     screen(`lcd-${id}`).then(() => {
@@ -56,21 +56,25 @@
     lcd.classList.remove("hop", "flash");
     buttons.forEach((b) => { b.disabled = false; b.classList.remove("down"); });
     const me = load();
-    msg.textContent = me.last ? `Welcome back! You ${VERB[me.last] || "visited"} ${ago(Date.now() - me.at)}.` : "Press a button to take care of Byte.";
+    const back = me.last ? `Welcome back! You ${VERB[me.last] || "visited"} ${ago(Date.now() - me.at)}. ` : "";
+    msg.textContent = back + (status ? status.why : "Press a button to take care of Byte.");
+    buttons.forEach((b) => b.classList.toggle("need", !!status && b.dataset.do === status.need));
     screen("lcd").catch(() => { lcd.setAttribute("aria-label", "Byte's screen couldn't load"); });
   }
 
   async function caretakers() {
     try {
-      const st = await (await fetch(`${RAW}state.json?t=${Date.now()}`, { cache: "no-store" })).json();
+      const get = async (f) => (await fetch(`${RAW}${f}?t=${Date.now()}`, { cache: "no-store" })).json();
+      const [st, s] = await Promise.all([get("state.json"), get("egg/status.json").catch(() => null)]);
+      if (s && typeof s.why === "string") { status = s; if (!busy) reset(); }
       const ok = (u) => /^[A-Za-z0-9-]{1,39}$/.test(u);
-      const top = Object.entries(st.users || {}).filter(([u]) => ok(u)).sort((a, b) => b[1].count - a[1].count).slice(0, 3);
+      const top = (s && Array.isArray(s.recent) ? s.recent : []).filter(ok);
       const who = $("#who");
       const n = Object.keys(st.users || {}).length, t = st.total || 0;
-      who.textContent = `${n} caretaker${n === 1 ? '' : 's'} · ${t} press${t === 1 ? '' : 'es'}`;
+      who.textContent = `${s && s.next ? `Byte ${s.next} · ` : ""}${n} caretaker${n === 1 ? '' : 's'} · ${t} press${t === 1 ? '' : 'es'}`;
       if (top.length) {
-        who.append(" · top: ");
-        top.forEach(([u], i) => {
+        who.append(" · recently: ");
+        top.forEach((u, i) => {
           const a = document.createElement("a");
           a.href = `https://github.com/${u}`; a.textContent = `@${u}`;
           who.append(i ? " " : "", a);
