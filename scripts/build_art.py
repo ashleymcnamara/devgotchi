@@ -15,37 +15,47 @@ from PIL import Image
 KIT = Path(sys.argv[1]).expanduser()
 OUT = Path(__file__).resolve().parent.parent / "art"
 CROP = (118, 0, 1138, 1242)  # egg bounds in mockup pixels; devgotchi.py uses the same box
-ROW1, ROW2, COL1, COL2 = 870, 1098, 511, 745  # README slices; all divisible into whole pixels at 1/3 scale
+ROW1, ROW2, COL1, COL2 = 870, 1098, 514, 748  # README slices, on the 6px grid
+# Coffee/Nap/Debug in grid pixels from CROP's corner: x, y, w, h (devgotchi.py has the same)
+BTNS = {"coffee": (31, 146, 32, 28), "nap": (68, 146, 33, 28), "debug": (107, 146, 31, 28)}
 COLS = {"baby": (206, 410), "toddler": (419, 627), "child": (637, 846), "teen": (856, 1072),
         "adult": (1082, 1307), "elder": (1316, 1522)}
 ROWS = {"idle": (288, 361), "happy": (446, 511), "sad": (519, 583), "code": (591, 663),
         "eat": (670, 735), "nap": (742, 821)}
 
 
-# Octicons mark-github (16px, MIT, github.com/primer/octicons) snapped to its own 16x16 grid
+# Everything lands on one grid: a "pixel" is 6 mockup px (2 css px in the README), stored 4x for retina.
+U, X4 = 6, 4
+# Octicons mark-github (MIT, github.com/primer/octicons), hand-snapped to 13x13 and a 7x7 for tiny spots
 MARK = [
-    ".....######.....",
-    "...##########...",
-    "..############..",
-    ".###.######.###.",
-    ".###........###.",
-    "####........####",
-    "###..........###",
-    "###..........###",
-    "###..........###",
-    "####........####",
-    "#####......#####",
-    ".##.##....#####.",
-    ".##.......#####.",
-    "..##......####..",
-    "...###....###...",
-    "................",
+    "....#####....",
+    "..#########..",
+    ".###########.",
+    ".##.#####.##.",
+    "###.......###",
+    "##.........##",
+    "##.........##",
+    "###.......###",
+    "####.....####",
+    ".#.##...####.",
+    ".##.....####.",
+    "..###...###..",
+    "....#...#....",
 ]
-INK, PAPER = (38, 37, 63), (255, 250, 253)
+MINI = [
+    "..###..",
+    ".#####.",
+    "##.#.##",
+    "#.....#",
+    "##...##",
+    ".##.##.",
+    "..#.#..",
+]
+INK, PAPER = (38, 37, 63, 255), (255, 250, 253, 255)
 
 
-def mark():
-    return np.array([[c == "#" for c in r] for r in MARK])
+def bits(rows):
+    return np.array([[c == "#" for c in r] for r in rows])
 
 
 def grow(m, n=1):
@@ -57,7 +67,7 @@ def grow(m, n=1):
 
 
 def heal(a, box, icon):
-    """paint over the old icon by interpolating each row between the untouched pixels either side"""
+    """paint over an old icon by interpolating each row between the untouched pixels either side"""
     x0, y0, x1, y1 = box
     c = a[y0:y1, x0:x1]
     m = grow(icon(c), 3)
@@ -69,43 +79,112 @@ def heal(a, box, icon):
                 c[j, m[j], ch] = np.interp(xs[m[j]], xs[k], c[j, k, ch])
 
 
-def stamp(a, cx, cy, cell, ink, border=None):
-    m = mark()
-    if border is not None:
-        m = np.pad(m, 1)
-        plate = grow(m)
-    h = m.shape[0] * cell
-    x0, y0 = cx - h // 2, cy - h // 2
-    for j in range(m.shape[0]):
-        for i in range(m.shape[1]):
-            if m[j, i]:
-                col = ink
-            elif border is not None and plate[j, i]:
-                col = border
-            else:
-                continue
-            a[y0 + j * cell:y0 + (j + 1) * cell, x0 + i * cell:x0 + (i + 1) * cell] = col
-
-
-def octicons(a):
-    """swap the mockup's AI-drawn cat faces for the real GitHub mark"""
+def mockup():
+    """the approved mockup with its AI-drawn cat-face logos painted out (real marks go back on after snapping)"""
+    a = np.array(Image.open(KIT / "reference/approved-pixel-mockup.png").convert("RGB")).astype(int)
     sticker = lambda c: (c.sum(2) < 330) | (c.min(2) >= 225)
     heal(a, (545, 115, 712, 237), sticker)
-    stamp(a, 627, 176, 7, INK, PAPER)
     heal(a, (945, 522, 1092, 664), sticker)
-    stamp(a, 1016, 593, 7, INK, PAPER)
     heal(a, (798, 664, 838, 702), lambda c: c.sum(2) < 400)
-    stamp(a, 818, 683, 2, INK)
-    a[422:486, 358:424] = a[440, 365]
-    stamp(a, 391, 454, 3, (255, 255, 255))
     return a
 
 
-def mockup():
-    return octicons(np.array(Image.open(KIT / "reference/approved-pixel-mockup.png").convert("RGB")).astype(int))
+def snap(rgba, f, colors=64):
+    """resample AI 'pixel art' onto a true grid: each f x f block becomes one pixel, by vote, outlines favoured"""
+    rgba = rgba.astype("uint8")
+    q = Image.fromarray(rgba[..., :3]).quantize(colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    idx = np.array(q)
+    pal = np.array(q.getpalette()[:colors * 3]).reshape(-1, 3)
+    weight = 1 + (pal.sum(1) < 260) * .7
+    solid = rgba[..., 3] > 127
+    H, W = idx.shape
+    nh, nw = max(1, round(H / f)), max(1, round(W / f))
+    out = np.zeros((nh, nw, 4), "uint8")
+    for j in range(nh):
+        y0, y1 = round(j * f), max(round(j * f) + 1, round((j + 1) * f))
+        for i in range(nw):
+            x0, x1 = round(i * f), max(round(i * f) + 1, round((i + 1) * f))
+            m = solid[y0:y1, x0:x1]
+            if m.size == 0 or m.mean() < .5:
+                continue
+            k = np.argmax(np.bincount(idx[y0:y1, x0:x1][m], minlength=len(pal)) * weight)
+            out[j, i] = (*pal[k], 255)
+    return out
 
 
-def save(im, name, colors=96):
+def put(dst, src, x, y):
+    m = src[..., 3] > 0
+    dst[y:y + src.shape[0], x:x + src.shape[1]][m] = src[m]
+
+
+def sticker(tilt=0):
+    """the mark as a dark sticker with a white edge, same family as the </> and >_ stickers"""
+    n = 17
+    plate = np.ones((n, n), bool)
+    for y, x in ((0, 0), (0, n - 1), (n - 1, 0), (n - 1, n - 1)):
+        plate[y, x] = False
+    plate = np.pad(plate, 2)
+    white = grow(plate)
+    out = np.zeros(plate.shape + (4,), "uint8")
+    out[grow(white)] = INK
+    out[white] = PAPER
+    out[plate] = INK
+    out[3:3 + 13, 3:3 + 13][bits(MARK)] = PAPER
+    if tilt:  # rotate big then sample back down, so the pixels stay square
+        big = Image.fromarray(out).resize((out.shape[1] * 8, out.shape[0] * 8), Image.NEAREST)
+        big = np.array(big.rotate(tilt, Image.NEAREST, expand=True))
+        out = big[4::8, 4::8]
+    return out
+
+
+GLYPH = {  # 3x5 letters for the button plates (the mockup's letters smear at this size)
+    "C": ["###", "#..", "#..", "#..", "###"], "O": ["###", "#.#", "#.#", "#.#", "###"],
+    "F": ["###", "#..", "##.", "#..", "#.."], "E": ["###", "#..", "##.", "#..", "###"],
+    "N": ["#..#", "##.#", "#.##", "#..#", "#..#"], "A": [".#.", "#.#", "###", "#.#", "#.#"],
+    "P": ["##.", "#.#", "##.", "#..", "#.."], "D": ["##.", "#.#", "#.#", "#.#", "##."],
+    "B": ["##.", "#.#", "##.", "#.#", "##."], "U": ["#.#", "#.#", "#.#", "#.#", "###"],
+    "G": ["###", "#..", "#.#", "#.#", "###"],
+}
+# the big label: chunky lowercase, rows 0-2 ascender, 3-7 x-height, 8-9 descender
+TITLE = "devgotchi"
+LOWER = {
+    "d": ["...##", "...##", "...##", ".####", "##.##", "##.##", "##.##", ".####"],
+    "e": [".....", ".....", ".....", ".###.", "##.##", "#####", "##...", ".####"],
+    "v": [".....", ".....", ".....", "##.##", "##.##", "##.##", ".###.", "..#.."],
+    "g": [".....", ".....", ".....", ".####", "##.##", "##.##", "##.##", ".####", "...##", "####."],
+    "o": [".....", ".....", ".....", ".###.", "##.##", "##.##", "##.##", ".###."],
+    "t": ["....", ".##.", ".##.", "####", ".##.", ".##.", ".##.", "..##"],
+    "c": [".....", ".....", ".....", ".####", "##...", "##...", "##...", ".####"],
+    "h": ["##...", "##...", "##...", "####.", "##.##", "##.##", "##.##", "##.##"],
+    "i": ["..", "##", "..", "##", "##", "##", "##", "##"],
+}
+PLATES = {"COFFEE": (34, 60, 175), "NAP": (73, 96, 176), "DEBUG": (109, 134, 175)}  # x0, x1, top row of text area
+
+
+def letter(n):
+    x0, x1, y0 = 57, 112, 44  # inside of the label plate
+    cream = np.median(n[48:52, 60:110][n[48:52, 60:110, :3].min(2) > 215], 0).astype("uint8")
+    n[43:55, 53:117] = cream
+    w = sum(len(LOWER[c][0]) + 1 for c in TITLE) - 1
+    x = x0 + (x1 - x0 + 1 - w) // 2
+    for c in TITLE:
+        g = bits(LOWER[c])
+        n[y0:y0 + g.shape[0], x:x + g.shape[1]][g] = INK
+        x += g.shape[1] + 1
+    for word, (x0, x1, y) in PLATES.items():
+        plate = n[y + 2, x0 + 1].copy()
+        n[y:y + 6, x0:x1 + 1] = plate
+        w = sum(len(GLYPH[c][0]) + 1 for c in word) - 1
+        x = x0 + (x1 - x0 + 1 - w) // 2
+        for c in word:
+            g = bits(GLYPH[c])
+            n[y + 1:y + 6, x:x + g.shape[1]][g] = INK
+            x += g.shape[1] + 1
+
+
+def save(a, name, colors=128):
+    im = Image.fromarray(a.astype("uint8"), "RGBA")
+    im = im.resize((im.width * X4, im.height * X4), Image.NEAREST)
     im.quantize(colors, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(OUT / name, optimize=True)
 
 
@@ -121,38 +200,39 @@ def shell():
         if 0 <= x < w and 0 <= y < h and not seen[y, x] and (near[y, x] or y > 1219):
             seen[y, x] = True
             stack += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-    alpha = np.where(seen, 0, 255).astype("uint8")
+    alpha = np.where(seen, 0, 255)
     alpha[1220:] = 0
-    full = Image.fromarray(np.dstack([a.astype("uint8"), alpha]), "RGBA")
     x0, y0, x1, y1 = CROP
+    n = snap(np.dstack([a, alpha])[y0:y1, x0:x1], U, 72)
+    letter(n)
+    put(n, sticker(), 75, 19)
+    st = sticker(-10)
+    put(n, st, 150 - st.shape[1] // 2, 99 - st.shape[0] // 2)
+    r1, r2, c1, c2 = ROW1 // U, ROW2 // U, (COL1 - x0) // U, (COL2 - x0) // U
+    save(n, "shell.png")
+    save(n[:r1], "top.png")
+    save(n[r1:r2, :c1], "row-coffee.png")
+    save(n[r1:r2, c1:c2], "row-nap.png")
+    save(n[r1:r2, c2:], "row-debug.png")
+    save(n[r2:], "bottom.png")
+    for name, (bx, by, bw, bh) in BTNS.items():
+        save(n[by:by + bh, bx:bx + bw], f"btn-{name}.png")
+    Image.fromarray(n).resize((n.shape[1] * 4, n.shape[0] * 4), Image.NEAREST).save("/tmp/snap-shell.png")
 
-    def part(box, name, colors=160):
-        im = full.crop(box)
-        save(im.resize((im.width * 2 // 3, im.height * 2 // 3), Image.LANCZOS), name, colors)
 
-    part(CROP, "shell.png")
-    part((x0, y0, x1, ROW1), "top.png")
-    part((x0, ROW1, COL1, ROW2), "row-coffee.png", 96)
-    part((COL1, ROW1, COL2, ROW2), "row-nap.png", 96)
-    part((COL2, ROW1, x1, ROW2), "row-debug.png", 96)
-    part((x0, ROW2, x1, y1), "bottom.png", 64)
-    for n, box in {"coffee": (306, 876, 496, 1044), "nap": (528, 876, 726, 1044), "debug": (757, 876, 946, 1044)}.items():
-        save(full.crop(box), f"btn-{n}.png", 64)
-
-
-def keyed(a, box, name):
+def keyed(a, box):
     x0, y0, x1, y1 = box
     c = a[y0:y1, x0:x1]
     bg = (c[..., 2] - c[..., 0] > 18) & (c[..., 0] > 120)
-    save(Image.fromarray(np.dstack([c, np.where(bg, 0, 255)]).astype("uint8"), "RGBA"), name, 48)
+    return snap(np.dstack([c, np.where(bg, 0, 255)]), U, 32)
 
 
 def props():
     a = mockup()
-    keyed(a, (358, 638, 500, 716), "cat.png")
-    keyed(a, (785, 560, 880, 716), "mug.png")
-    c = a[422:486, 358:424]
-    save(Image.fromarray(c.astype("uint8")).convert("RGBA"), "octo.png", 16)
+    save(keyed(a, (358, 638, 500, 716)), "cat.png")
+    mug = keyed(a, (785, 560, 880, 716))
+    mug[17:24, 2:9][bits(MINI)] = INK
+    save(mug, "mug.png")
 
 
 def comps(mask, gap=4):
@@ -202,20 +282,45 @@ def fg(crop):
     return ~bg
 
 
+# how tall (in grid pixels) Byte stands at each stage: she still grows, but even the baby fills the screen
+TALL = {"baby": 30, "toddler": 32, "child": 34, "teen": 35, "adult": 36, "elder": 36}
+
+
+def split(blobs):
+    """two frames drawn touching come out as one blob; cut it at its thinnest column near the middle"""
+    if len(blobs) != 1 or blobs[0][2] - blobs[0][0] < 1.8 * (blobs[0][3] - blobs[0][1]):
+        return blobs
+    x0, y0, x1, y1, m = blobs[0]
+    cols = m[y0:y1, x0:x1].sum(0)
+    w = x1 - x0
+    k = x0 + w // 3 + int(np.argmin(cols[w // 3:2 * w // 3]))
+    out = []
+    for a, b in ((x0, k), (k, x1)):
+        mm = np.zeros_like(m)
+        mm[:, a:b] = m[:, a:b]
+        ys, xs = np.nonzero(mm)
+        out.append((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1, mm))
+    return out
+
+
 def frames():
     s = np.array(Image.open(KIT / "reference/original-girl-sprite-sheet.png").convert("RGB")).astype(int)
     meta = {}
     (OUT / "girl").mkdir(exist_ok=True)
+    for p in (OUT / "girl").glob("*.png"):
+        p.unlink()
     for st, (x0, x1) in COLS.items():
+        cut = {}
         for an, (y0, y1) in ROWS.items():
             crop = s[y0:y1, x0:x1]
+            cut[an] = (crop, split([c for c in sorted(comps(fg(crop)), key=lambda c: c[0]) if c[4].sum() >= 500]))
+        f = max(by1 - by0 for _, by0, _, by1, _ in cut["idle"][1]) / TALL[st]
+        for an, (crop, blobs) in cut.items():
             fr = []
-            for bx0, by0, bx1, by1, m in sorted(comps(fg(crop)), key=lambda c: c[0]):
-                if m.sum() < 500:
-                    continue
-                rgba = np.dstack([crop.astype("uint8"), (m * 255).astype("uint8")])[by0:by1, bx0:bx1]
-                save(Image.fromarray(rgba), f"girl/{st}-{an}-{len(fr)}.png", 64)
-                fr.append([int(bx0), int(by0), int(bx1 - bx0), int(by1 - by0)])
+            for bx0, by0, bx1, by1, m in blobs:
+                px = snap(np.dstack([crop, m * 255])[by0:by1, bx0:bx1], f, 40)
+                save(px, f"girl/{st}-{an}-{len(fr)}.png", 40)
+                fr.append([round(by0 / f), px.shape[1], px.shape[0]])
             meta[f"{st}-{an}"] = fr
     (OUT / "girl/meta.json").write_text(json.dumps(meta) + "\n")
 
