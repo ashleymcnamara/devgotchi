@@ -1,11 +1,23 @@
 {
   "born": "2026-11-05",
-  "energy": 7,
-  "rest": 7,
+  "energy": 9,
+  "rest": 6,
   "bugs": 0,
-  "total": 0,
+  "total": 1,
   "ticks": 0,
-  "users": {},
-  "last": null,
-  "last_care": "2026-11-05T19:00:32+00:00"
+  "users": {
+    "ashleymcnamara": {
+      "count": 1,
+      "first": "2026-11-05",
+      "last_day": "2026-11-05",
+      "streak": 1,
+      "at": "2026-11-05T19:02:12+00:00"
+    }
+  },
+  "last": {
+    "action": "coffee",
+    "user": "ashleymcnamara",
+    "at": "2026-11-05T19:02:12+00:00"
+  },
+  "last_care": "2026-11-05T19:02:12+00:00"
 }
