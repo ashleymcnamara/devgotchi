@@ -272,6 +272,16 @@ def day(st):
     return (date.today() - date.fromisoformat(st["born"])).days + 1
 
 
+PROMPTS = {"coffee": "☕ **Pour Byte a coffee**", "nap": "💤 **Send Byte to bed**", "debug": "🐛 **Help Byte squash a bug**"}
+
+
+def issue_url(n):
+    # GitHub's new issue page can ignore ?template=, so prefill title and body directly too.
+    body = f"{PROMPTS[n]}\n\nJust hit **Create** and a bot does the rest. {NAME} reacts on the egg in about 30 seconds.\n\n_(please don't edit the title)_"
+    return (f"https://github.com/{REPO}/issues/new?template={n}.md"
+            f"&title={quote('pet|' + n, safe='')}&body={quote(body, safe='')}")
+
+
 def render(st):
     EGG_DIR.mkdir(exist_ok=True)
     (EGG_DIR / "top.svg").write_text(slice_svg(st, 0, 0, W, TOP, f"devgotchi: {NAME}, a tiny pixel developer raised by the community. {stage(st)[1].capitalize()}, day {day(st)}.", CSS))
@@ -280,7 +290,7 @@ def render(st):
     (EGG_DIR / "bottom.svg").write_text(slice_svg(st, 0, MID, W, H - MID, "devgotchi speaker grille"))
     v = int(time.time())
     btns = "".join(
-        f'<a href="https://github.com/{REPO}/issues/new?template={n}.md">'
+        f'<a href="{issue_url(n)}">'
         f'<img src="egg/btn-{n}.svg?v={v}" width="100" align="top" alt="{n}"></a>' for n, _ in BUTTONS)
     last = st.get("last")
     top = sorted(st["users"].items(), key=lambda kv: -kv[1]["count"])[:3]
@@ -351,7 +361,7 @@ def act(title, user, created=""):
         return (f"🥚 Thanks for stopping by! {NAME} only accepts care from GitHub accounts older than "
                 f"{MIN_ACCOUNT_DAYS} days, to keep the egg safe from spam bots. Come back soon 💖\n\n" + footer(st))
     u = st["users"].get(user)
-    if u and hours_since(u.get("at")) < COOLDOWN_HOURS:
+    if u and user != OWNER and hours_since(u.get("at")) < COOLDOWN_HOURS:
         mins = max(1, int((COOLDOWN_HOURS - hours_since(u["at"])) * 60))
         return (f"⏳ {NAME} is still processing your last visit, @{user}. "
                 f"Come back in about {plural(mins, 'minute')}!\n\n" + footer(st))
