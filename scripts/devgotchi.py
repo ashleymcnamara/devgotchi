@@ -406,8 +406,8 @@ def tick():
 
 
 def footer(st):
-    return (f'<a href="{PROFILE}"><img src="https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg" width="240" alt="{describe(st)}"></a>\n\n'
-            f"**[← back to the egg]({PROFILE})** · "
+    return (f'<a href="{PAGES}"><img src="https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg" width="240" alt="{describe(st)}"></a>\n\n'
+            f"**[← back to the egg]({PAGES})** · "
             f"<sub>{NAME} is a {stage(st)[1]}, day {day(st)} · {plural(len(st['users']), 'caretaker')} so far</sub>")
 
 
@@ -520,7 +520,7 @@ def act(title, user, created=""):
     pics = (f'<img src="{raw}/before.svg" width="220" alt="Before: {describe(was_st)}"> ➜ '
             f'<img src="{raw}/lcd.svg" width="220" alt="After: {describe(st)}">')
     return (f"{emo} **{NAME} {did}!** {change}.{extra}\n\n{pics}\n\n{hi}\n\n"
-            f"**[← back to the egg]({PROFILE})** · <sub>{NAME} {upcoming(st)} · "
+            f"**[← back to the egg]({PAGES})** · <sub>{NAME} {upcoming(st)} · "
             f"{plural(len(st['users']), 'caretaker')} so far</sub>")
 
 

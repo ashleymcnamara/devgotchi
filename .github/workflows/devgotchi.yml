@@ -83,6 +83,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NUM: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$NUM" --repo "$GITHUB_REPOSITORY" --body "🥚 Byte only understands the buttons on the egg. Head back to [the egg](https://github.com/${GITHUB_REPOSITORY_OWNER}) to say hi!"
+          gh issue comment "$NUM" --repo "$GITHUB_REPOSITORY" --body "🥚 Byte only understands the buttons on the egg. Head back to [the egg](https://ashleymcnamara.github.io/devgotchi/) to say hi!"
           gh issue close "$NUM" --repo "$GITHUB_REPOSITORY" --reason "not planned"
           gh issue lock "$NUM" --repo "$GITHUB_REPOSITORY" || true
