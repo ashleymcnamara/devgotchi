@@ -44,46 +44,6 @@ FONT = "dgpx," + "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
 PAL = {"k": "#2a1b3d", "h": "#7a4526", "H": "#a8673a", "s": "#f9d2b0", "c": "#f49ab0", "w": "#ffffff",
        "p": "#8f6cf2", "P": "#6449c9", "l": "#c6b6ff", "m": "#c04cf0", "g": "#d9d4e6", "G": "#a69fba",
        "r": "#e5484d", "o": "#f26b2a", "b": "#7b4a2a"}
-GIRL = ["........kkkk........",
-        ".......khhhhk.......",
-        ".......khhHhk.......",
-        "......kkhhhhkk......",
-        "....kkhhhhhhhhkk....",
-        "...khhhHHhhhhhhhk...",
-        "..khhHhhhhhhhhhhhk..",
-        ".khhhhhhhhhhhhhhhhk.",
-        ".khhhhhhhhhhhhhhhhk.",
-        ".khhshhsshhsshhshhk.",
-        ".khhsssssssssssshhk.",
-        ".khhsswksssswksshhk.",
-        ".khhsskksssskksshhk.",
-        ".khhscssskkssscshhk.",
-        ".khhksssssssssskhhk.",
-        ".khhhhkkkkkkkkhhhhk.",
-        "..khhkppwsswppkhhk..",
-        "...kkpppwppwpppkk...",
-        "...kppppwppwppppk...",
-        "..ksppppppppppppsk..",
-        "...kpppppPPpppppk...",
-        "....kkkkkkkkkkkk....",
-        "....kPPk....kPPk....",
-        "....kkkk....kkkk...."]
-BABY = ["................",
-        ".....kkkkkk.....",
-        "....khhHhhhk....",
-        "...khhhhhhhhk...",
-        "..khhhhhhhhhhk..",
-        "..khsssssssshk..",
-        "..kssssssssssk..",
-        "..kswksssswksk..",
-        "..kskksssskksk..",
-        "..kcssskksssck..",
-        "..kppkkkkkkppk..",
-        ".kppppllppppppk.",
-        ".kppplllpppppPk.",
-        ".kpppppppppPPPk.",
-        "..kPPpppppPPPk..",
-        "...kkkkkkkkkk..."]
 CAT = ["k.....k", "kk...kk", "kwwwwwk", "kwkwkwk", "kwwcwwk", ".kkkkk."]
 LAPTOP = ["kkkkkkkk.", "kllllllk.", "kllwwllk.", "kllllllk.", "kkkkkkkkk", "kPPPPPPPk", "kkkkkkkkk"]
 MUG = [".w.w...", "..w.w..", "kkkkk..", "kbbbkk.", "kwwwk.k", "kwwwkk.", ".kkk..."]
@@ -91,6 +51,9 @@ BUGC = [".k.k.", "krrrk", "rrkrr", "krrrk", ".r.r."]
 SPLATC = ["r.r.r", ".rwr.", "rwwwr", ".rwr.", "r.r.r"]
 CRABC = ["o.......o", "oo.....oo", ".ooooooo.", "ookoookoo", "ooooooooo", "o.o...o.o"]
 HEART = [".c.c.", "ccccc", "ccccc", ".ccc.", "..c.."]
+SHEET = {"BABY": "baby", "TODDLER": "toddler", "KID": "child", "TEEN": "teen", "ADULT": "adult", "ELDER": "elder"}
+SPEED = {"idle": 2.4, "code": .9, "nap": 2.6, "eat": 1.4, "happy": 1.2, "sad": 2.4}
+
 STAGES = [(0, "baby", "BABY"), (1, "toddler", "TODDLER"), (3, "kid", "KID"), (7, "teen", "TEEN"),
           (14, "grown-up dev", "ADULT"), (30, "wise elder dev", "ELDER")]
 REACT_HOURS, GRUMPY_HOURS, RUST_HOURS = 6, 24, 48
@@ -164,43 +127,44 @@ def recent(st):
     return last.get("action") if hours_since(last.get("at")) < REACT_HOURS else None
 
 
-def sprite(st, closed=False):
-    """Byte at her current stage, as rows of palette letters."""
-    abbr, cond = stage(st)[2], condition(st)
-    if abbr == "BABY":
-        rows = [list(r) for r in BABY]
-        if closed:
-            rows[7] = list("..kssssssssssk..")
-        return ["".join(r) for r in rows]
-    g = [list(r) for r in GIRL]
-    if closed:
-        g[11] = list(".khhsssssssssssshhk.")
-        g[12] = list(".khhskksssssskkshhk.")
+_meta = None
+
+
+def frames(sheet, a):
+    global _meta
+    if _meta is None:
+        _meta = json.loads((ART / "girl/meta.json").read_text())
+    return _meta[f"{sheet}-{a}"]
+
+
+def anim(st):
+    """which row of the sprite sheet Byte is acting out right now."""
+    act, cond = recent(st), condition(st)
+    if act == "nap":
+        return "nap"
+    if act == "coffee":
+        return "eat"
+    if act == "debug":
+        return "happy" if st["bugs"] == 0 else "code"
     if cond != "ok":
-        g[13] = list(".khhscsskkkksscshhk.")
-        g[10] = list(".khhskksssssskkshhk.")
-    if abbr in ("ADULT", "ELDER"):
-        for x in (5, 6, 7, 8, 11, 12, 13, 14):
-            g[10][x] = "k"
-        for y in (11, 12):
-            g[y][5] = g[y][8] = g[y][11] = g[y][14] = "k"
-        g[11][9] = g[11][10] = "k"
-    if abbr == "TEEN":
-        for x in range(6, 14):
-            g[4][x] = "m"
-        g[5][3] = g[6][2] = g[5][16] = g[6][17] = "m"
-        for y in range(7, 10):
-            g[y][1] = g[y][18] = "m"
-        for y in range(10, 14):
-            g[y][0], g[y][1], g[y][2] = "k", "m", "m"
-            g[y][17], g[y][18], g[y][19] = "m", "m", "k"
-    if abbr == "ELDER":
-        g = [[{"h": "g", "H": "G"}.get(c, c) for c in r] for r in g]
-    if abbr == "TODDLER":
-        g = g[:16] + [list("..khhkppwsswppkhhk.."), list("...kkpppwppwpppkk..."),
-                      list("..ksppppppppppppsk.."), list("....kkkkkkkkkkkk...."), list("....kPPk....kPPk...."),
-                      list("....kkkk....kkkk....")]
-    return ["".join(r) for r in g]
+        return "sad"
+    return "code" if mood(st) >= 2 else "idle"
+
+
+def girl(st, cx, floor, tallest):
+    """Byte's sprite-sheet frames, stacked; CSS shows one at a time. Returns markup and her right edge."""
+    sheet, a = SHEET[stage(st)[2]], anim(st)
+    fr = frames(sheet, a)
+    top, bottom = min(f[1] for f in fr), max(f[1] + f[3] for f in fr)
+    s = min(1.0, tallest / (bottom - top))
+    n, dur = len(fr), SPEED[a]
+    out, right = [], cx
+    for i, (bx, by, w, h) in enumerate(fr):
+        x, y = cx - w * s / 2, floor - (bottom - by) * s
+        right = max(right, x + w * s)
+        style = f' class="fr fr{i}" style="animation:k{n} {dur}s steps(1) {-dur * ((n - i) % n) / n:.2f}s infinite"' if n > 1 else ""
+        out.append(img(f"girl/{sheet}-{a}-{i}.png", round(x, 2), round(y, 2), round(w * s, 2), round(h * s, 2), style))
+    return "".join(out), right
 
 
 def lcd(st):
@@ -214,23 +178,14 @@ def lcd(st):
     def g(i, inner, cls=""):
         return f'<g id="{i}"{cls}><g {up}>{inner}</g></g>'
 
-    awake, shut = sprite(st), sprite(st, closed=True)
-    sp = 4 if abbr == "BABY" else 3
-    w, h = len(awake[0]) * sp, len(awake) * sp
-    sx, sy = LX + (LW - w) // 2 - 6, LY + 82 - h
-    pet = (cpx(shut, sx, sy, sp) if act == "nap"
-           else cpx(awake, sx, sy, sp, ' class="fa"') + cpx(shut, sx, sy, sp, ' class="fb"'))
+    pet, right = girl(st, LX + LW // 2 - 8, LY + 84, 64)
+    right = round(right) + 2
     prop, pop, stat = "", "", f"{abbr} DAY {day(st)}"
-    right = sx + w + 4
     if abbr == "TODDLER" and not act:
         prop += cpx(CAT, right, LY + 68, 3)
-    if abbr in ("KID", "TEEN", "ADULT", "ELDER") and not act:
-        prop += cpx(LAPTOP, right, LY + 64, 3)
     if act == "coffee":
         prop, pop, stat = cpx(MUG, right, LY + 58, 3), "ZING" if jit else "+2", f"ENERGY {st['energy']}/10"
     elif act == "nap":
-        prop = "".join(txt(right + dx, LY + dy, z, fs, fill=PAL["p"], extra=' class="zz"')
-                       for dx, dy, fs, z in ((0, 82, 9, "z"), (9, 70, 12, "Z"), (18, 56, 15, "Z")))
         pop, stat = "+3", f"REST {st['rest']}/10"
     elif act == "debug":
         prop, pop, stat = cpx(SPLATC, right + 2, LY + 66, 4), "OK!", f"BUGS {st['bugs']}"
@@ -259,8 +214,8 @@ def lcd(st):
 
 GRIDDEF = (f'<pattern id="grid" x="{LCDBOX[0]}" y="{LCDBOX[1]}" width="{K * 4}" height="{K * 4}" patternUnits="userSpaceOnUse">'
            f'<rect width="{K * 3}" height="{K * 3}" fill="{LCDK}" opacity=".06"/></pattern>')
-CSS = ("@keyframes a{0%,49%{opacity:1}50%,100%{opacity:0}}@keyframes b{0%,49%{opacity:0}50%,100%{opacity:1}}"
-       ".fa{animation:a 1.2s steps(1) infinite}.fb{animation:b 1.2s steps(1) infinite}"
+CSS = ("@keyframes k2{0%,49.9%{opacity:1}50%,100%{opacity:0}}@keyframes k3{0%,33.2%{opacity:1}33.3%,100%{opacity:0}}"
+       ".fr{opacity:0}"
        "@keyframes w{0%,49%{transform:translateX(0)}50%,100%{transform:translateX(2px)}}.bug{animation:w .8s steps(1) infinite}"
        "@keyframes jit{0%,32%{transform:translateX(-1px)}33%,65%{transform:translateX(1px)}66%,100%{transform:translateX(0)}}"
        ".jit{animation:jit .3s steps(1) infinite}"
@@ -269,7 +224,7 @@ CSS = ("@keyframes a{0%,49%{opacity:1}50%,100%{opacity:0}}@keyframes b{0%,49%{op
        "@keyframes zz{0%{transform:translateY(3px);opacity:0}30%,70%{opacity:1}100%{transform:translateY(-5px);opacity:0}}"
        ".zz{animation:zz 2.4s steps(6) infinite}.zz:nth-of-type(2){animation-delay:.6s}.zz:nth-of-type(3){animation-delay:1.2s}"
        "image{image-rendering:pixelated}"
-       "@media (prefers-reduced-motion:reduce){*{animation:none!important}.fb{opacity:0}}")
+       "@media (prefers-reduced-motion:reduce){*{animation:none!important}.fr{opacity:0}.fr0{opacity:1}}")
 
 
 def svg(view, w, h, inner, title, css=CSS, font=True):
