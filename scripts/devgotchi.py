@@ -39,7 +39,6 @@ BTNS = {"coffee": (306, 876, 190, 168), "nap": (528, 876, 198, 168), "debug": (7
 SCALE = 1 / 3
 LX, LY, LW, LH, K = 78, 124, 144, 104, 4  # the screen's own grid, and how much it is blown up
 LCD, LCDK, OFF = "#efeaff", "#3b2a63", "#d8cff5"
-FONT = "dgpx," + "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
 
 PAL = {"k": "#2a1b3d", "h": "#7a4526", "H": "#a8673a", "s": "#f9d2b0", "c": "#f49ab0", "w": "#ffffff",
        "p": "#8f6cf2", "P": "#6449c9", "l": "#c6b6ff", "m": "#c04cf0", "g": "#d9d4e6", "G": "#a69fba",
@@ -52,11 +51,17 @@ SPLATC = ["r.r.r", ".rwr.", "rwwwr", ".rwr.", "r.r.r"]
 CRABC = ["o.......o", "oo.....oo", ".ooooooo.", "ookoookoo", "ooooooooo", "o.o...o.o"]
 HEART = [".c.c.", "ccccc", "ccccc", ".ccc.", "..c.."]
 SHEET = {"BABY": "baby", "TODDLER": "toddler", "KID": "child", "TEEN": "teen", "ADULT": "adult", "ELDER": "elder"}
-SPEED = {"idle": 2.4, "code": .9, "nap": 2.6, "eat": 1.4, "happy": 1.2, "sad": 2.4}
+SPEED = {"idle": 2.4, "code": .9, "nap": 2.6, "eat": 1.4, "happy": 1.2, "sad": 2.4, "walk": 1.0}
 
 STAGES = [(0, "baby", "BABY"), (1, "toddler", "TODDLER"), (3, "kid", "KID"), (7, "teen", "TEEN"),
           (14, "grown-up dev", "ADULT"), (30, "wise elder dev", "ELDER")]
 REACT_HOURS, GRUMPY_HOURS, RUST_HOURS = 6, 24, 48
+RETIRE_DAY = 60  # after this the next press hatches a new egg and Byte starts over as a baby
+STAGE_SAY = {"BABY": "*happy baby noises*", "TODDLER": "She showed you her cat.",
+             "KID": "She asked you 400 questions about Git.", "TEEN": "She nodded without taking her headphones off.",
+             "ADULT": "She added you to the CONTRIBUTORS file.", "ELDER": "She told you about the time she fixed prod with a floppy disk."}
+DOING = {"nap": "napping", "eat": "having a snack", "happy": "cheering", "code": "coding", "walk": "going for a walk",
+         "idle": "hanging out", "sad": "feeling down"}
 
 
 def cpx(rows, x0, y0, s, cls="", tint=None):
@@ -70,8 +75,7 @@ _uri = {}
 
 def uri(name):
     if name not in _uri:
-        mime = "font/ttf" if name.endswith(".ttf") else "image/png"
-        _uri[name] = f"data:{mime};base64," + base64.b64encode((ART / name).read_bytes()).decode()
+        _uri[name] = "data:image/png;base64," + base64.b64encode((ART / name).read_bytes()).decode()
     return _uri[name]
 
 
@@ -109,9 +113,28 @@ def mood(st):
     return 3 if avg >= 7 else 2 if avg >= 4 else 1
 
 
+_glyphs = None
+
+
+def num(v):
+    return f"{v:.2f}".rstrip("0").rstrip(".")
+
+
 def txt(x, y, s, size=7, anchor="start", fill=LCDK, extra=""):
-    return (f'<text x="{x}" y="{y}" text-anchor="{anchor}" font-family="{FONT}" font-weight="700" '
-            f'font-size="{size}" fill="{fill}"{extra}>{s}</text>')
+    """pixel text from art/glyphs.json (baked from pixel.ttf), so no font has to ride along in every svg."""
+    global _glyphs
+    if _glyphs is None:
+        _glyphs = json.loads((ART / "glyphs.json").read_text())
+    k, gl = size / _glyphs["size"], _glyphs["glyphs"]
+    chars = [gl.get(c, gl["?"]) for c in s]
+    w = sum(c["adv"] for c in chars) * k
+    x0 = x - {"middle": w / 2, "end": w}.get(anchor, 0)
+    d, cx = [], 0
+    for c in chars:
+        for rx, ry, rw in c["runs"]:
+            d.append(f"M{num(x0 + (cx + rx) * k)} {num(y + ry * k)}h{num(rw * k)}v{num(k)}h{num(-rw * k)}z")
+        cx += c["adv"]
+    return f'<path d="{"".join(d)}" fill="{fill}"{extra}/>'
 
 
 def xp(st):
@@ -148,7 +171,23 @@ def anim(st):
         return "happy" if st["bugs"] == 0 else "code"
     if cond != "ok":
         return "sad"
-    return "code" if mood(st) >= 2 else "idle"
+    if mood(st) >= 2:
+        return "walk" if st.get("ticks", 0) % 2 else "code"
+    return "idle"
+
+
+def gen(st):
+    return st.get("gen", 1)
+
+
+def describe(st):
+    """alt text that says what the screen actually shows."""
+    cond = condition(st)
+    doing = {"rust": "rewriting everything in Rust", "grumpy": "grumpy from being ignored"}.get(cond, DOING[anim(st)])
+    bugs = f", with {plural(st['bugs'], 'bug')} crawling around" if st["bugs"] else ""
+    g = f" (generation {gen(st)})" if gen(st) > 1 else ""
+    return (f"{NAME}{g} is a {stage(st)[1]} on day {day(st)}, level {level(st)}. "
+            f"She's {doing}{bugs}. Her sleeping cat is next to her.")
 
 
 def girl(st, cx, floor, tallest):
@@ -195,13 +234,15 @@ def lcd(st):
         pop, stat = "ugh", "GRUMPY"
     elif jit:
         pop, stat = "!!", "JITTERY"
+    elif day(st) > RETIRE_DAY:
+        stat = "NEW EGG SOON"
     if st["bugs"]:
         prop += cpx(BUGC, LX + 10, LY + 44, 3, ' class="bug"')
     if st["bugs"] >= 3:
         prop += cpx(BUGC, LX + 12, LY + 40, 3)
     poptxt = txt(right + 14, LY + (30 if act == "nap" else 40), pop, 9, "middle", extra=' class="pop"') if pop else ""
     hearts = "".join(cpx(HEART, LX + LW - 40 + i * 12, LY + 6, 2, tint=None if i < mood(st) else OFF) for i in range(3))
-    level_tag = txt(LX + 8, LY + 14, f"LV {level(st)}", 7)
+    level_tag = txt(LX + 8, LY + 14, (f"G{gen(st)} " if gen(st) > 1 else "") + f"LV {level(st)}", 7)
     stats = (f'<rect x="{LX + 4}" y="{LY + LH - 17}" width="{LW - 8}" height="1" fill="{LCDK}" opacity=".25"/>'
              + txt(LX + 8, LY + LH - 6, NAME.upper()) + txt(LX + LW - 8, LY + LH - 6, stat, anchor="end"))
     return (f'<rect x="{lx}" y="{ly}" width="{lw}" height="{lh}" fill="{LCD}"/>'
@@ -226,12 +267,11 @@ CSS = ("@keyframes k2{0%,49.9%{opacity:1}50%,100%{opacity:0}}@keyframes k3{0%,33
        "@media (prefers-reduced-motion:reduce){*{animation:none!important}.fr{opacity:0}.fr0{opacity:1}}")
 
 
-def svg(view, w, h, inner, title, css=CSS, font=True):
+def svg(view, w, h, inner, title, css=CSS):
     x, y, vw, vh = view
     lab = f'role="img" aria-label="{title}"><title>{title}</title>' if title else 'aria-hidden="true">'
-    face = f'@font-face{{font-family:dgpx;src:url({uri("pixel.ttf")}) format("truetype")}}' if font else ""
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x} {y} {vw} {vh}" width="{w}" height="{h}" '
-            f'shape-rendering="crispEdges" {lab}<defs>{GRIDDEF}</defs><style>{face}{css}</style>{inner}</svg>\n')
+            f'shape-rendering="crispEdges" {lab}<defs>{GRIDDEF}</defs><style>{css}</style>{inner}</svg>\n')
 
 
 def plural(n, w):
@@ -263,12 +303,12 @@ def render(st):
     EGG_DIR.mkdir(exist_ok=True)
     DOCS.mkdir(exist_ok=True)
     x0, y0, cw, ch = CROP
-    alt = f"devgotchi: {NAME}, a tiny pixel developer raised by the community. {stage(st)[1].capitalize()}, day {day(st)}, level {level(st)}."
+    alt = f"devgotchi: {describe(st)}"
     (EGG_DIR / "top.svg").write_text(svg((x0, y0, cw, ROW1), round(cw * SCALE), round(ROW1 * SCALE),
                                          img("top.png", x0, y0, cw, ROW1) + lcd(st), alt))
     (EGG_DIR / "lcd.svg").write_text(svg(LCDBOX, LCDBOX[2], LCDBOX[3], lcd(st), alt))
     for n in BTNS:
-        (EGG_DIR / f"lcd-{n}.svg").write_text(svg(LCDBOX, LCDBOX[2], LCDBOX[3], lcd(preview(st, n)), f"{NAME} after {n}"))
+        (EGG_DIR / f"lcd-{n}.svg").write_text(svg(LCDBOX, LCDBOX[2], LCDBOX[3], lcd(preview(st, n)), f"{ACTIONS[n][1]}: {describe(preview(st, n))}"))
     for f in ["shell.png", "btn-coffee.png", "btn-nap.png", "btn-debug.png", "pixel.ttf"]:
         if not (DOCS / f).exists() or (DOCS / f).read_bytes() != (ART / f).read_bytes():
             (DOCS / f).write_bytes((ART / f).read_bytes())
@@ -293,7 +333,7 @@ def render(st):
 # 🥚 devgotchi
 
 {NAME} is a tiny pixel developer the community raises together. Press a button, hit **Create**, and she reacts here in about 30 seconds.<br>
-She grows up from a baby to a teen with headphones to a wise elder dev. Neglect her and she starts rewriting everything in Rust.
+She grows up from a baby to a teen with headphones to a wise elder dev, and after {RETIRE_DAY} days a new egg hatches. Neglect her and she starts rewriting everything in Rust.
 
 <a href="{PAGES}"><img src="egg/top.svg?v={v}" width="{round(cw * SCALE)}" align="top" alt="{alt}"></a><br>{btns}<br><img src="art/bottom.png" width="{round(cw * SCALE)}" align="top" alt="">
 
@@ -334,7 +374,7 @@ def tick():
 
 
 def footer(st):
-    return (f'<a href="{PROFILE}"><img src="https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg" width="240" alt="{NAME}"></a>\n\n'
+    return (f'<a href="{PROFILE}"><img src="https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg" width="240" alt="{describe(st)}"></a>\n\n'
             f"**[← back to the egg]({PROFILE})** · "
             f"<sub>{NAME} is a {stage(st)[1]}, day {day(st)} · {plural(len(st['users']), 'caretaker')} so far</sub>")
 
@@ -369,6 +409,13 @@ def apply(st, a, user, stamp=None):
     st["last_care"] = stamp
 
 
+def hatch(st):
+    """the elder retires and Byte starts over as a baby. caretakers and their streaks carry over."""
+    today = date.today().isoformat()
+    st.setdefault("elders", []).append({"gen": gen(st), "born": st["born"], "retired": today, "level": level(st)})
+    st.update(gen=gen(st) + 1, born=today, energy=10, rest=10, bugs=0, jitter=0, xp=0, seen_stage="BABY", last_care=None)
+
+
 def act(title, user, created=""):
     st = load()
     a = title.strip().lower().removeprefix("pet|").strip()
@@ -387,6 +434,10 @@ def act(title, user, created=""):
         return (f"⏳ {NAME} is still processing your last visit, @{user}. "
                 f"Come back in about {plural(mins, 'minute')}!\n\n" + footer(st))
 
+    hatched = None
+    if day(st) > RETIRE_DAY:
+        hatched = level(st)
+        hatch(st)
     was, lv = condition(st), level(st)
     before = dict(st)
     stamp = now().isoformat(timespec="seconds")
@@ -415,16 +466,22 @@ def act(title, user, created=""):
         n = u["count"]
         suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
         hi = f"Welcome back @{user}, that's your **{n}{suf} visit**{streak}."
-    extra = f"\n\n⭐ **Level up!** {NAME} is level {level(st)} now." if level(st) > lv else ""
-    if was == "rust":
+    extra = ""
+    if hatched:
+        extra = (f"\n\n🥚 **A new egg hatched!** {NAME} (generation {gen(st) - 1}) retired at level {hatched} after "
+                 f"{RETIRE_DAY} days of shipping. Meet generation {gen(st)}, and you're the very first to hold her.")
+    elif was == "rust":
         extra = f"\n\n🦀 **You rescued {NAME}!** She was halfway through rewriting everything in Rust."
     elif was == "grumpy":
         extra = f"\n\n🌤️ {NAME} was feeling neglected. You cheered her up."
+    if level(st) > lv and not hatched:
+        extra += f"\n\n⭐ **Level up!** {NAME} is level {level(st)} now."
     if st.get("seen_stage") != stage(st)[2]:
         if st.get("seen_stage"):
             extra += f"\n\n🎉 **{NAME} grew up!** She's a **{stage(st)[1]}** now, and you're the first to see it."
         st["seen_stage"] = stage(st)[2]
         save(st)
+    extra += f"\n\n_{STAGE_SAY[stage(st)[2]]}_"
     return f"{emo} **{NAME} {did}!** {change}.{extra}\n\n{hi}\n\n" + footer(st)
 
 
