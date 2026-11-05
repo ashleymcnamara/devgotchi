@@ -53,7 +53,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NUM: ${{ github.event.issue.number }}
         run: |
-          sed -i "s/__SHA__/$(git rev-parse HEAD)/" "$RUNNER_TEMP/comment.md"
+          sed -i "s/__SHA__/$(git rev-parse HEAD)/g" "$RUNNER_TEMP/comment.md"
           if [ -n "$ACK" ]; then
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$ACK" -F body=@"$RUNNER_TEMP/comment.md" --silent \
               || gh issue comment "$NUM" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
