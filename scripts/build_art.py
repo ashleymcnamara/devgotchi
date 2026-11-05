@@ -28,6 +28,12 @@ LOWER = {
     "c": [".....", ".....", ".....", ".####", "##...", "##...", "##...", ".####"],
     "h": ["##...", "##...", "##...", "####.", "##.##", "##.##", "##.##", "##.##"],
     "i": ["..", "##", "..", "##", "##", "##", "##", "##"],
+    "f": ["..##", ".##.", ".##.", "####", ".##.", ".##.", ".##.", ".##."],
+    "n": [".....", ".....", ".....", "####.", "##.##", "##.##", "##.##", "##.##"],
+    "a": [".....", ".....", ".....", "####.", "...##", ".####", "##.##", ".####"],
+    "p": [".....", ".....", ".....", "####.", "##.##", "##.##", "##.##", "####.", "##...", "##..."],
+    "b": ["##...", "##...", "##...", "####.", "##.##", "##.##", "##.##", "####."],
+    "u": [".....", ".....", ".....", "##.##", "##.##", "##.##", "##.##", ".####"],
 }
 # stickers: fill colours by letter; the ink outline and white sticker edge are grown around them
 STICKER_PAL = {"c": (255, 92, 138), "C": (214, 51, 108), "w": (255, 255, 255), "y": (255, 212, 71),
@@ -112,6 +118,43 @@ def title(a, word="devgotchi", cell=7, box=(452, 256, 812, 337), top=263):
         x += (len(g[0]) + 1) * cell
 
 
+LABELS = {"coffee": (317, 1045, 488, 1090), "nap": (555, 1050, 699, 1096), "debug": (767, 1045, 934, 1090)}
+
+
+def word_mask(word):
+    w = sum(len(LOWER[ch][0]) for ch in word) + len(word) - 1
+    m = np.zeros((10, w), bool)
+    x = 0
+    for ch in word:
+        for j, row in enumerate(LOWER[ch]):
+            for i, v in enumerate(row):
+                m[j, x + i] = v == "#"
+        x += len(LOWER[ch][0]) + 1
+    return m
+
+
+def labels(a, cell=4, top=1047, o=6):
+    """swap the mockup's soft sans button labels for mini nameplates in the same chunky lowercase as the title"""
+    edge = lambda c: (np.arange(c.shape[1]) > 10)[None, :] & (np.arange(c.shape[1]) < c.shape[1] - 10)[None, :] \
+        & (np.arange(c.shape[0]) >= 5)[:, None] & (np.arange(c.shape[0]) < c.shape[0] - 3)[:, None]
+    for word, (x0, y0, x1, y1) in LABELS.items():
+        heal(a, (x0 - 14, y0 - 8, x1 + 14, y1 + 6), edge)
+        m = word_mask(word)
+        tw = m.shape[1] * cell
+        x = (x0 + x1) // 2 - tw // 2
+        x -= (x - CROP[0]) % 3
+        l, t, r, b = x - 4 * cell - o, top - cell - o, x + tw + 4 * cell + o, top + 10 * cell + o
+        a[t + o:b + o, l + o:r + o] = (214, 110, 160)
+        a[t:b, l + o:r - o] = INK
+        a[t + o:b - o, l:r] = INK
+        a[t + o:b - o, l + o:r - o] = (253, 243, 217)
+        a[b - o - cell:b - o, l + o:r - o] = (238, 214, 182)
+        for yy, xx in ((t + o, l + o), (t + o, r - 2 * o), (b - 2 * o, l + o), (b - 2 * o, r - 2 * o)):
+            a[yy:yy + o, xx:xx + o] = INK
+        for j, i in zip(*m.nonzero()):
+            a[top + j * cell:top + (j + 1) * cell, x + i * cell:x + (i + 1) * cell] = INK
+
+
 def decorate(a):
     """swap the mockup's two cat-face stickers for a heart and a debugging duck, and retitle the plate"""
     dark_or_white = lambda c: (c.sum(2) < 330) | (c.min(2) >= 225)
@@ -119,6 +162,7 @@ def decorate(a):
     heal(a, (545, 110, 712, 232), dark_or_white)
     heal(a, (945, 522, 1092, 664), dark_or_white)
     title(a)
+    labels(a)
     sticker(a, HEART, 627, 172, 8)
     sticker(a, DUCK, 1016, 593, 7)
     return a
