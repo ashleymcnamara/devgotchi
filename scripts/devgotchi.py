@@ -181,23 +181,22 @@ def lcd(st):
     pet, right = girl(st, LX + LW // 2 - 8, LY + 84, 64)
     right = round(right) + 2
     prop, pop, stat = "", "", f"{abbr} DAY {day(st)}"
-    if abbr == "TODDLER" and not act:
-        prop += cpx(CAT, right, LY + 68, 3)
+    prop += img("cat.png", LX + 3, LY + 84 - 18, round(142 * 18 / 78, 2), 18)
     if act == "coffee":
-        prop, pop, stat = cpx(MUG, right, LY + 58, 3), "ZING" if jit else "+2", f"ENERGY {st['energy']}/10"
+        prop, pop, stat = prop + cpx(MUG, right, LY + 58, 3), "ZING" if jit else "+2", f"ENERGY {st['energy']}/10"
     elif act == "nap":
         pop, stat = "+3", f"REST {st['rest']}/10"
     elif act == "debug":
-        prop, pop, stat = cpx(SPLATC, right + 2, LY + 66, 4), "OK!", f"BUGS {st['bugs']}"
+        prop, pop, stat = prop + cpx(SPLATC, right + 2, LY + 66, 4), "OK!", f"BUGS {st['bugs']}"
     elif cond == "rust":
-        prop = cpx(CRABC, right, LY + 68, 3, ' class="bug"')
+        prop += cpx(CRABC, right, LY + 68, 3, ' class="bug"')
         pop, stat = ".rs", "IN RUST"
     elif cond == "grumpy":
         pop, stat = "ugh", "GRUMPY"
     elif jit:
         pop, stat = "!!", "JITTERY"
     if st["bugs"]:
-        prop += cpx(BUGC, LX + 8, LY + 70, 3, ' class="bug"')
+        prop += cpx(BUGC, LX + 10, LY + 44, 3, ' class="bug"')
     if st["bugs"] >= 3:
         prop += cpx(BUGC, LX + 12, LY + 40, 3)
     poptxt = txt(right + 14, LY + (30 if act == "nap" else 40), pop, 9, "middle", extra=' class="pop"') if pop else ""
