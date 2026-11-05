@@ -4,9 +4,7 @@ needs Pillow + numpy (dev only, the bot never runs this):
     python scripts/build_art.py ~/Desktop/devogachi-readme-pixel-kit
 art/pixel.ttf is Silkscreen Bold (SIL Open Font License, see art/OFL.txt).
 """
-import json
 import sys
-from collections import deque
 from pathlib import Path
 
 import numpy as np
@@ -16,36 +14,43 @@ KIT = Path(sys.argv[1]).expanduser()
 OUT = Path(__file__).resolve().parent.parent / "art"
 CROP = (118, 0, 1138, 1242)  # egg bounds in mockup pixels; devgotchi.py uses the same box
 ROW1, ROW2, COL1, COL2 = 870, 1098, 511, 745  # README slices; all divisible into whole pixels at 1/3 scale
-COLS = {"baby": (206, 410), "toddler": (419, 627), "child": (637, 846), "teen": (856, 1072),
-        "adult": (1082, 1307), "elder": (1316, 1522)}
-ROWS = {"idle": (288, 361), "happy": (446, 511), "sad": (519, 583), "code": (591, 663),
-        "eat": (670, 735), "nap": (742, 821)}
 
 
-# Octicons mark-github (16px, MIT, github.com/primer/octicons) snapped to its own 16x16 grid
-MARK = [
-    ".....######.....",
-    "...##########...",
-    "..############..",
-    ".###.######.###.",
-    ".###........###.",
-    "####........####",
-    "###..........###",
-    "###..........###",
-    "###..........###",
-    "####........####",
-    "#####......#####",
-    ".##.##....#####.",
-    ".##.......#####.",
-    "..##......####..",
-    "...###....###...",
-    "................",
-]
 INK, PAPER = (38, 37, 63), (255, 250, 253)
-
-
-def mark():
-    return np.array([[c == "#" for c in r] for r in MARK])
+# chunky lowercase for the label plate: rows 0-2 ascender, 3-7 x-height, 8-9 descender
+LOWER = {
+    "d": ["...##", "...##", "...##", ".####", "##.##", "##.##", "##.##", ".####"],
+    "e": [".....", ".....", ".....", ".###.", "##.##", "#####", "##...", ".####"],
+    "v": [".....", ".....", ".....", "##.##", "##.##", "##.##", ".###.", "..#.."],
+    "g": [".....", ".....", ".....", ".####", "##.##", "##.##", "##.##", ".####", "...##", "####."],
+    "o": [".....", ".....", ".....", ".###.", "##.##", "##.##", "##.##", ".###."],
+    "t": ["....", ".##.", ".##.", "####", ".##.", ".##.", ".##.", "..##"],
+    "c": [".....", ".....", ".....", ".####", "##...", "##...", "##...", ".####"],
+    "h": ["##...", "##...", "##...", "####.", "##.##", "##.##", "##.##", "##.##"],
+    "i": ["..", "##", "..", "##", "##", "##", "##", "##"],
+}
+# stickers: fill colours by letter; the ink outline and white sticker edge are grown around them
+STICKER_PAL = {"c": (255, 92, 138), "C": (214, 51, 108), "w": (255, 255, 255), "y": (255, 212, 71),
+               "Y": (232, 160, 32), "o": (247, 120, 40), "k": INK}
+HEART = [".cc...cc.",
+         "cwcc.cccc",
+         "cwcccccCc",
+         "ccccccCCc",
+         ".cccccCc.",
+         "..cccCc..",
+         "...cCc...",
+         "....c...."]
+DUCK = [".....yyy.....",
+        "....yyyyy....",
+        "....yykyyoo..",
+        "....yyyyyooo.",
+        ".....yyyy....",
+        "y...yyyyyy...",
+        "yy.yyyyyyyy..",
+        "yyyyyyYYYyyy.",
+        "yyyyyYYYyyyy.",
+        ".yyyyyyyyyY..",
+        "..YYYYYYYY..."]
 
 
 def grow(m, n=1):
@@ -69,40 +74,58 @@ def heal(a, box, icon):
                 c[j, m[j], ch] = np.interp(xs[m[j]], xs[k], c[j, k, ch])
 
 
-def stamp(a, cx, cy, cell, ink, border=None):
-    m = mark()
-    if border is not None:
-        m = np.pad(m, 1)
-        plate = grow(m)
-    h = m.shape[0] * cell
-    x0, y0 = cx - h // 2, cy - h // 2
-    for j in range(m.shape[0]):
-        for i in range(m.shape[1]):
-            if m[j, i]:
-                col = ink
-            elif border is not None and plate[j, i]:
-                col = border
+def sticker(a, rows, cx, cy, cell):
+    """a die-cut sticker: the art, a 1-cell ink outline, then a 1-cell white edge"""
+    fill = np.pad(np.array([[ch != "." for ch in r] for r in rows]), 2)
+    line, edge = grow(fill), grow(fill, 2)
+    h, w = fill.shape
+    x0, y0 = cx - w * cell // 2, cy - h * cell // 2
+    for j in range(h):
+        for i in range(w):
+            if fill[j, i]:
+                col = STICKER_PAL[rows[j - 2][i - 2]]
+            elif line[j, i]:
+                col = INK
+            elif edge[j, i]:
+                col = PAPER
             else:
                 continue
             a[y0 + j * cell:y0 + (j + 1) * cell, x0 + i * cell:x0 + (i + 1) * cell] = col
 
 
-def octicons(a):
-    """swap the mockup's AI-drawn cat faces for the real GitHub mark"""
-    sticker = lambda c: (c.sum(2) < 330) | (c.min(2) >= 225)
-    heal(a, (545, 115, 712, 237), sticker)
-    stamp(a, 627, 176, 7, INK, PAPER)
-    heal(a, (945, 522, 1092, 664), sticker)
-    stamp(a, 1016, 593, 7, INK, PAPER)
-    heal(a, (798, 664, 838, 702), lambda c: c.sum(2) < 400)
-    stamp(a, 818, 683, 2, INK)
-    a[422:486, 358:424] = a[440, 365]
-    stamp(a, 391, 454, 3, (255, 255, 255))
+def title(a, word="devgotchi", cell=7, box=(452, 256, 812, 337), top=263):
+    """wipe the mockup's lettering off the cream plate and set the name in chunky pixels"""
+    x0, y0, x1, y1 = box
+    c = a[y0:y1, x0:x1]
+    ink = grow(c.sum(2) < 400, 2)
+    for j in range(c.shape[0]):
+        cream = np.median(c[j][~ink[j]], 0) if (~ink[j]).any() else c[j - 1].mean(0)
+        c[j, ink[j]] = cream
+    w = sum(len(LOWER[ch][0]) for ch in word) + len(word) - 1
+    x = (x0 + x1) // 2 - w * cell // 2
+    for ch in word:
+        g = LOWER[ch]
+        for j, row in enumerate(g):
+            for i, v in enumerate(row):
+                if v == "#":
+                    a[top + j * cell:top + (j + 1) * cell, x + i * cell:x + (i + 1) * cell] = INK
+        x += (len(g[0]) + 1) * cell
+
+
+def decorate(a):
+    """swap the mockup's two cat-face stickers for a heart and a debugging duck, and retitle the plate"""
+    dark_or_white = lambda c: (c.sum(2) < 330) | (c.min(2) >= 225)
+    a[230:258, 575:690] = a[230:258, 568:569]  # the top sticker overlapped the plate's straight top edge
+    heal(a, (545, 110, 712, 232), dark_or_white)
+    heal(a, (945, 522, 1092, 664), dark_or_white)
+    title(a)
+    sticker(a, HEART, 627, 172, 8)
+    sticker(a, DUCK, 1016, 593, 7)
     return a
 
 
 def mockup():
-    return octicons(np.array(Image.open(KIT / "reference/approved-pixel-mockup.png").convert("RGB")).astype(int))
+    return decorate(np.array(Image.open(KIT / "reference/approved-pixel-mockup.png").convert("RGB")).astype(int))
 
 
 def save(im, name, colors=96):
@@ -140,89 +163,7 @@ def shell():
         save(full.crop(box), f"btn-{n}.png", 64)
 
 
-def keyed(a, box, name):
-    x0, y0, x1, y1 = box
-    c = a[y0:y1, x0:x1]
-    bg = (c[..., 2] - c[..., 0] > 18) & (c[..., 0] > 120)
-    save(Image.fromarray(np.dstack([c, np.where(bg, 0, 255)]).astype("uint8"), "RGBA"), name, 48)
-
-
-def props():
-    a = mockup()
-    keyed(a, (358, 638, 500, 716), "cat.png")
-    keyed(a, (785, 560, 880, 716), "mug.png")
-    c = a[422:486, 358:424]
-    save(Image.fromarray(c.astype("uint8")).convert("RGBA"), "octo.png", 16)
-
-
-def comps(mask, gap=4):
-    """connected blobs after a small dilation, so sparkles and Zs stay with their frame."""
-    h, w = mask.shape
-    d = mask.copy()
-    for _ in range(gap):
-        d = d | np.roll(d, 1, 0) | np.roll(d, -1, 0) | np.roll(d, 1, 1) | np.roll(d, -1, 1)
-    lab = np.zeros((h, w), int)
-    n, out = 0, []
-    for y in range(h):
-        for x in range(w):
-            if d[y, x] and not lab[y, x]:
-                n += 1
-                q, pts = deque([(y, x)]), []
-                lab[y, x] = n
-                while q:
-                    cy, cx = q.popleft()
-                    pts.append((cy, cx))
-                    for dy in (-1, 0, 1):
-                        for dx in (-1, 0, 1):
-                            ny, nx = cy + dy, cx + dx
-                            if 0 <= ny < h and 0 <= nx < w and d[ny, nx] and not lab[ny, nx]:
-                                lab[ny, nx] = n
-                                q.append((ny, nx))
-                ys, xs = [p[0] for p in pts], [p[1] for p in pts]
-                out.append((min(xs), min(ys), max(xs) + 1, max(ys) + 1, (lab == n) & mask))
-    return out
-
-
-def fg(crop):
-    """flood the cell background in from the edges; everything else is sprite."""
-    edge = np.concatenate([crop[0], crop[-1], crop[:, 0], crop[:, -1]])
-    dist = np.abs(crop - np.median(edge, 0)).sum(-1)
-    h, w = dist.shape
-    bg = np.zeros((h, w), bool)
-    q = deque([(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)])
-    while q:
-        y, x = q.popleft()
-        if bg[y, x] or dist[y, x] > 38:
-            continue
-        bg[y, x] = True
-        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            ny, nx = y + dy, x + dx
-            if 0 <= ny < h and 0 <= nx < w and not bg[ny, nx]:
-                q.append((ny, nx))
-    return ~bg
-
-
-def frames():
-    s = np.array(Image.open(KIT / "reference/original-girl-sprite-sheet.png").convert("RGB")).astype(int)
-    meta = {}
-    (OUT / "girl").mkdir(exist_ok=True)
-    for st, (x0, x1) in COLS.items():
-        for an, (y0, y1) in ROWS.items():
-            crop = s[y0:y1, x0:x1]
-            fr = []
-            for bx0, by0, bx1, by1, m in sorted(comps(fg(crop)), key=lambda c: c[0]):
-                if m.sum() < 500:
-                    continue
-                rgba = np.dstack([crop.astype("uint8"), (m * 255).astype("uint8")])[by0:by1, bx0:bx1]
-                save(Image.fromarray(rgba), f"girl/{st}-{an}-{len(fr)}.png", 64)
-                fr.append([int(bx0), int(by0), int(bx1 - bx0), int(by1 - by0)])
-            meta[f"{st}-{an}"] = fr
-    (OUT / "girl/meta.json").write_text(json.dumps(meta) + "\n")
-
-
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
     shell()
-    props()
-    frames()
     print(sorted(p.name for p in OUT.iterdir()), sum(p.stat().st_size for p in OUT.rglob("*.png")) // 1024, "KB")
