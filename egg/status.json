@@ -1,6 +1,6 @@
 {
-  "need": "debug",
-  "why": "There's 1 bug on her screen. Help her squash it!",
+  "need": null,
+  "why": "She's doing great. Any button keeps her happy.",
   "next": "becomes a toddler tomorrow",
   "recent": [
     "ashleymcnamara"
