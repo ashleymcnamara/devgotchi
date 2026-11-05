@@ -228,9 +228,11 @@ def act(title, user):
     else:
         streak = f" · 🔥 **{u['streak']}-day streak**" if u["streak"] > 1 else ""
         hi = f"Welcome back @{user}, that's visit **#{u['count']}**{streak}."
+    egg = f"https://raw.githubusercontent.com/{REPO}/__SHA__/egg/top.svg"
     return (f"{emo} **{NAME} {did}!** {change}.\n\n{hi}\n\n"
-            f"<sub>{NAME} is a junior dev, day {day(st)} · {plural(len(st['users']), 'caretaker')} so far · "
-            f"[go see her →](https://github.com/{REPO})</sub>")
+            f'<a href="https://github.com/{REPO}"><img src="{egg}" width="240" alt="{NAME} reacting"></a>\n\n'
+            f"**[← back to the egg](https://github.com/{REPO})** to press another button\n\n"
+            f"<sub>{NAME} is a junior dev, day {day(st)} · {plural(len(st['users']), 'caretaker')} so far</sub>")
 
 
 if __name__ == "__main__":
