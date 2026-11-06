@@ -1,6 +1,6 @@
 {
-  "need": "debug",
-  "why": "There's 1 bug on her screen. Help her squash it!",
+  "need": "nap",
+  "why": "She can barely keep her eyes open. Send her to bed!",
   "next": "becomes a kid in 2 days",
   "recent": [
     "ashleymcnamara"
