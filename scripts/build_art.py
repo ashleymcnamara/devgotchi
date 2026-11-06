@@ -133,7 +133,7 @@ def word_mask(word):
     return m
 
 
-def labels(a, cell=4, top=1047, o=6):
+def labels(a, cell=4, top=1056, o=6):
     """swap the mockup's soft sans button labels for mini nameplates in the same chunky lowercase as the title"""
     edge = lambda c: (np.arange(c.shape[1]) > 10)[None, :] & (np.arange(c.shape[1]) < c.shape[1] - 10)[None, :] \
         & (np.arange(c.shape[0]) >= 5)[:, None] & (np.arange(c.shape[0]) < c.shape[0] - 3)[:, None]
