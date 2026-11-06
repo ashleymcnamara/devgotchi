@@ -1,6 +1,6 @@
 {
-  "need": "debug",
-  "why": "There's 2 bugs on her screen. Help her squash it!",
+  "need": "coffee",
+  "why": "She's running on empty. She could really use a coffee!",
   "next": "becomes a kid in 2 days",
   "recent": [
     "ashleymcnamara"
