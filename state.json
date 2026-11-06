@@ -1,30 +1,30 @@
 {
   "born": "2026-11-05",
-  "energy": 4,
-  "rest": 6,
+  "energy": 6,
+  "rest": 5,
   "bugs": 1,
-  "total": 14,
+  "total": 15,
   "ticks": 4,
   "users": {
     "ashleymcnamara": {
-      "count": 14,
+      "count": 15,
       "first": "2026-11-05",
       "last_day": "2026-11-06",
       "streak": 2,
-      "at": "2026-11-06T15:08:37+00:00"
+      "at": "2026-11-06T15:09:08+00:00"
     }
   },
   "last": {
-    "action": "debug",
+    "action": "coffee",
     "user": "ashleymcnamara",
-    "at": "2026-11-06T15:08:37+00:00"
+    "at": "2026-11-06T15:09:08+00:00"
   },
-  "last_care": "2026-11-06T15:08:37+00:00",
-  "xp": 100,
-  "jitter": 0,
+  "last_care": "2026-11-06T15:09:08+00:00",
+  "xp": 105,
+  "jitter": 1,
   "days": {
     "2026-11-05": 12,
-    "2026-11-06": 1
+    "2026-11-06": 2
   },
   "seen_stage": "TODDLER"
 }
