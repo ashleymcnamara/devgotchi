@@ -1,10 +1,10 @@
 {
-  "need": null,
-  "why": "She's doing great. Any button keeps her happy.",
-  "next": "becomes a toddler tomorrow",
+  "need": "debug",
+  "why": "There's 1 bug on her screen. Help her squash it!",
+  "next": "becomes a kid in 2 days",
   "recent": [
     "ashleymcnamara"
   ],
-  "stage": "baby",
-  "day": 1
+  "stage": "toddler",
+  "day": 2
 }
