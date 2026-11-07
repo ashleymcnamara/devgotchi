@@ -1,10 +1,10 @@
 {
   "need": "nap",
   "why": "She can barely keep her eyes open. Send her to bed!",
-  "next": "becomes a kid in 2 days",
+  "next": "becomes a kid tomorrow",
   "recent": [
     "ashleymcnamara"
   ],
   "stage": "toddler",
-  "day": 2
+  "day": 3
 }
