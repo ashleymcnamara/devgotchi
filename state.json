@@ -1,10 +1,10 @@
 {
   "born": "2026-11-05",
-  "energy": 4,
-  "rest": 3,
+  "energy": 3,
+  "rest": 2,
   "bugs": 2,
   "total": 15,
-  "ticks": 6,
+  "ticks": 7,
   "users": {
     "ashleymcnamara": {
       "count": 15,
