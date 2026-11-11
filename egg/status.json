@@ -1,10 +1,10 @@
 {
   "need": "debug",
   "why": "There are 5 bugs on her screen. Help her squash one!",
-  "next": "becomes a teen in 2 days",
+  "next": "becomes a teen tomorrow",
   "recent": [
     "ashleymcnamara"
   ],
   "stage": "kid",
-  "day": 6
+  "day": 7
 }
